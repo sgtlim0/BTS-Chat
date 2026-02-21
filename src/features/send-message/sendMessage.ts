@@ -50,8 +50,6 @@ export async function sendMessage(content: string): Promise<void> {
     content: m.content,
   }));
 
-  const assistantMsgId = assistantMessage.id;
-
   await streamChat({
     messages: apiMessages,
     model: settings.model,
@@ -60,14 +58,8 @@ export async function sendMessage(content: string): Promise<void> {
     onChunk: (chunk) => {
       useChatStore.getState().appendToLastMessage(chunk);
     },
-    onSources: (sources) => {
-      useChatStore.getState().setMessageSources(assistantMsgId, sources);
-    },
-    onRelatedQuestions: (questions) => {
-      useChatStore.getState().setMessageRelatedQuestions(assistantMsgId, questions);
-    },
     onError: (error) => {
-      useChatStore.getState().appendToLastMessage(`\n[Error: ${error}]`);
+      useChatStore.getState().appendToLastMessage(`\n[오류: ${error}]`);
     },
     onDone: () => {
       useChatStore.getState().finishStreaming();

@@ -5,11 +5,11 @@ import type { ChatSession } from "@/entities/message/model";
 
 function getDateGroup(timestamp: number): string {
   const date = new Date(timestamp);
-  if (isToday(date)) return "Today";
-  if (isYesterday(date)) return "Yesterday";
-  if (isThisWeek(date)) return "This Week";
-  if (isThisMonth(date)) return "This Month";
-  return format(date, "MMMM yyyy");
+  if (isToday(date)) return "오늘";
+  if (isYesterday(date)) return "어제";
+  if (isThisWeek(date)) return "이번 주";
+  if (isThisMonth(date)) return "이번 달";
+  return format(date, "yyyy년 M월");
 }
 
 function groupSessions(sessions: ChatSession[]): { label: string; items: ChatSession[] }[] {
@@ -19,7 +19,7 @@ function groupSessions(sessions: ChatSession[]): { label: string; items: ChatSes
   const groups: { label: string; items: ChatSession[] }[] = [];
 
   if (pinned.length > 0) {
-    groups.push({ label: "Pinned", items: pinned.sort((a, b) => b.createdAt - a.createdAt) });
+    groups.push({ label: "고정됨", items: pinned.sort((a, b) => b.createdAt - a.createdAt) });
   }
 
   const dateGroups: Record<string, ChatSession[]> = {};
@@ -46,7 +46,7 @@ export function ConversationList() {
     return (
       <div className="flex-1 overflow-y-auto px-3" role="list">
         <div className="py-8 text-center text-text-muted text-[13px]">
-          No conversations yet
+          아직 대화가 없습니다
         </div>
       </div>
     );

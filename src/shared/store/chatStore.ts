@@ -42,7 +42,7 @@ export const useChatStore = create<ChatState>()(
         const id = generateId();
         const session: ChatSession = {
           id,
-          title: "New Chat",
+          title: "새 채팅",
           messages: [],
           createdAt: Date.now(),
           pinned: false,
@@ -238,7 +238,7 @@ export const useChatStore = create<ChatState>()(
           return {
             sessions: {
               ...state.sessions,
-              [activeSessionId]: { ...session, messages: [], title: "New Chat" },
+              [activeSessionId]: { ...session, messages: [], title: "새 채팅" },
             },
           };
         });

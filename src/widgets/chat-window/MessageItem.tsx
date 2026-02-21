@@ -4,11 +4,8 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import "highlight.js/styles/github.css";
-import { Copy, Check, Trash2, RefreshCw, Wrench, Pencil } from "lucide-react";
+import { Copy, Check, Trash2, RefreshCw, Pencil } from "lucide-react";
 import type { Message } from "@/entities/message/model";
-import { SourceCards } from "@/widgets/sources/SourceCards";
-import { RelatedQuestions } from "@/widgets/related-questions/RelatedQuestions";
-import { SearchBadge } from "@/widgets/search-badge/SearchBadge";
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -26,7 +23,6 @@ interface MessageItemProps {
   onDelete?: (id: string) => void;
   onRetry?: (content: string) => void;
   onEdit?: (id: string, content: string) => void;
-  onRelatedQuestionClick?: (text: string) => void;
 }
 
 function MessageItemRaw({
@@ -35,7 +31,6 @@ function MessageItemRaw({
   onDelete,
   onRetry,
   onEdit,
-  onRelatedQuestionClick,
 }: MessageItemProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,8 +50,6 @@ function MessageItemRaw({
   }, [editText, message.id, message.content, onEdit]);
 
   const safeContent = message.content || "";
-  const hasSources = message.sources && message.sources.length > 0;
-  const hasRelatedQuestions = message.relatedQuestions && message.relatedQuestions.length > 0;
 
   if (message.role === "user") {
     return (
@@ -81,16 +74,16 @@ function MessageItemRaw({
               <button
                 className="text-[12px] text-text-muted hover:text-text-primary px-2.5 py-1 rounded-md transition-colors"
                 onClick={() => setIsEditing(false)}
-                aria-label="Cancel editing"
+                aria-label="편집 취소"
               >
-                Cancel
+                취소
               </button>
               <button
                 className="text-[12px] text-white bg-accent hover:bg-accent-hover px-3 py-1 rounded-md transition-colors"
                 onClick={handleEditSubmit}
-                aria-label="Save edit"
+                aria-label="편집 저장"
               >
-                Save
+                저장
               </button>
             </div>
           </div>
@@ -104,7 +97,7 @@ function MessageItemRaw({
             <button
               className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary p-1 rounded-md transition-colors"
               onClick={handleCopy}
-              aria-label={copied ? "Copied" : "Copy message"}
+              aria-label={copied ? "복사됨" : "메시지 복사"}
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
             </button>
@@ -115,7 +108,7 @@ function MessageItemRaw({
                   setEditText(message.content);
                   setIsEditing(true);
                 }}
-                aria-label="Edit message"
+                aria-label="메시지 편집"
               >
                 <Pencil size={12} />
               </button>
@@ -124,7 +117,7 @@ function MessageItemRaw({
               <button
                 className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary p-1 rounded-md transition-colors"
                 onClick={() => onRetry(message.content)}
-                aria-label="Retry message"
+                aria-label="재시도"
               >
                 <RefreshCw size={12} />
               </button>
@@ -133,7 +126,7 @@ function MessageItemRaw({
               <button
                 className="flex items-center gap-1 text-[11px] text-text-muted hover:text-danger p-1 rounded-md transition-colors"
                 onClick={() => onDelete(message.id)}
-                aria-label="Delete message"
+                aria-label="메시지 삭제"
               >
                 <Trash2 size={12} />
               </button>
@@ -144,32 +137,18 @@ function MessageItemRaw({
     );
   }
 
-  if (message.role === "tool") {
-    return (
-      <div className="mb-5 animate-[fadeIn_0.15s_ease-out]">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Wrench size={12} className="text-text-muted" />
-          <span className="text-[11px] font-medium text-text-muted">Tool Result</span>
-        </div>
-        <div className="max-w-[85%] px-4 py-3 rounded-xl bg-bg-secondary border border-border text-[13px] leading-relaxed break-words text-text-secondary">
-          {safeContent}
-        </div>
-      </div>
-    );
-  }
-
   // Assistant message
   return (
     <div className="mb-6 animate-[fadeIn_0.15s_ease-out] group">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-6 h-6 rounded-full bg-accent-light flex items-center justify-center flex-shrink-0">
-          <span className="text-accent text-[11px] font-semibold">C</span>
+        <div
+          className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold"
+          style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+        >
+          <span>✦</span>
         </div>
-        <span className="text-[13px] font-medium text-text-primary">Assistant</span>
-        {hasSources && <SearchBadge />}
+        <span className="text-[13px] font-medium text-text-primary">CardNews AI</span>
       </div>
-
-      {hasSources && <SourceCards sources={message.sources!} />}
 
       <div className="prose prose-sm max-w-none text-text-primary leading-[1.7] text-[14px]
         [&_p]:mb-3 [&_p:last-child]:mb-0
@@ -180,7 +159,7 @@ function MessageItemRaw({
         [&_pre]:bg-bg-secondary [&_pre]:p-4 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:my-3 [&_pre]:border [&_pre]:border-border
         [&_code]:font-mono [&_code]:text-[13px]
         [&_:not(pre)>code]:bg-bg-tertiary [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:rounded-md [&_:not(pre)>code]:text-[13px]
-        [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:my-3 [&_blockquote]:px-4 [&_blockquote]:text-text-secondary [&_blockquote]:italic
+        [&_blockquote]:border-l-2 [&_blockquote]:border-accent [&_blockquote]:my-3 [&_blockquote]:px-4 [&_blockquote]:text-text-secondary [&_blockquote]:italic
         [&_a]:text-accent [&_a]:no-underline [&_a:hover]:underline
         [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-5 [&_h1]:mb-2
         [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2
@@ -197,28 +176,21 @@ function MessageItemRaw({
         )}
       </div>
 
-      {!isStreaming && hasRelatedQuestions && onRelatedQuestionClick && (
-        <RelatedQuestions
-          questions={message.relatedQuestions!}
-          onQuestionClick={onRelatedQuestionClick}
-        />
-      )}
-
       {!isStreaming && (
         <div className="flex gap-0.5 mt-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary p-1 rounded-md transition-colors"
             onClick={handleCopy}
-            aria-label={copied ? "Copied" : "Copy message"}
+            aria-label={copied ? "복사됨" : "메시지 복사"}
           >
             {copied ? <Check size={12} /> : <Copy size={12} />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? "복사됨" : "복사"}
           </button>
           {onDelete && (
             <button
               className="flex items-center gap-1 text-[11px] text-text-muted hover:text-danger p-1 rounded-md transition-colors"
               onClick={() => onDelete(message.id)}
-              aria-label="Delete message"
+              aria-label="메시지 삭제"
             >
               <Trash2 size={12} />
             </button>

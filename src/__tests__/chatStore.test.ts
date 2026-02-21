@@ -17,7 +17,7 @@ describe("chatStore", () => {
 
     expect(state.activeSessionId).toBe(id);
     expect(state.sessions[id]).toBeDefined();
-    expect(state.sessions[id].title).toBe("New Chat");
+    expect(state.sessions[id].title).toBe("새 채팅");
     expect(state.sessions[id].messages).toEqual([]);
   });
 

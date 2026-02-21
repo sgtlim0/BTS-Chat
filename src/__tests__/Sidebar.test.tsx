@@ -39,13 +39,13 @@ vi.mock("@/shared/lib/debounce", () => ({
 describe("Sidebar", () => {
   it("renders when not collapsed", () => {
     render(<Sidebar collapsed={false} />);
-    expect(screen.getByText("New Chat")).toBeDefined();
-    expect(screen.getByText("Search")).toBeDefined();
+    expect(screen.getByText("새 채팅")).toBeDefined();
+    expect(screen.getByText("검색")).toBeDefined();
   });
 
   it("has correct aria labels", () => {
     render(<Sidebar collapsed={false} />);
-    expect(screen.getByLabelText("New chat")).toBeDefined();
-    expect(screen.getByLabelText("Search")).toBeDefined();
+    expect(screen.getByLabelText("새 채팅")).toBeDefined();
+    expect(screen.getByLabelText("검색")).toBeDefined();
   });
 });

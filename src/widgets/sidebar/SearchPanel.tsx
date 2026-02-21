@@ -13,7 +13,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     return (
       <div className="flex-1 overflow-y-auto px-3">
         <div className="py-8 text-center text-text-muted text-[13px]">
-          No results found
+          검색 결과가 없습니다
         </div>
       </div>
     );

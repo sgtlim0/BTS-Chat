@@ -29,7 +29,7 @@ export function ModelSettings({ onClose }: ModelSettingsProps) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Settings"
+      aria-label="설정"
     >
       <div
         ref={panelRef}
@@ -38,48 +38,48 @@ export function ModelSettings({ onClose }: ModelSettingsProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="m-0 text-base text-text-primary font-semibold">Settings</h2>
+          <h2 className="m-0 text-base text-text-primary font-semibold">설정</h2>
           <button
             className="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded-lg hover:bg-bg-tertiary hover:text-text-primary transition-colors"
             onClick={onClose}
-            aria-label="Close settings"
+            aria-label="설정 닫기"
           >
             <X size={18} />
           </button>
         </div>
 
         <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
-          Model
+          모델
         </label>
         <select
           className="w-full p-2.5 bg-bg-secondary border border-border rounded-xl text-text-primary text-[13px] outline-none mb-5 focus:border-accent appearance-none cursor-pointer"
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          aria-label="Select model"
+          aria-label="모델 선택"
         >
           {AVAILABLE_MODELS.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name}
+              {m.name} - {m.description}
             </option>
           ))}
         </select>
 
         <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
-          System Prompt
+          시스템 프롬프트
         </label>
         <textarea
           className="w-full p-3 bg-bg-secondary border border-border rounded-xl text-text-primary text-[13px] font-inherit outline-none resize-y min-h-[80px] mb-5 focus:border-accent"
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
-          placeholder="Customize the assistant's behavior..."
-          aria-label="System prompt"
+          placeholder="어시스턴트의 동작을 커스터마이즈하세요..."
+          aria-label="시스템 프롬프트"
         />
 
         <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
           Temperature: {temperature}
         </label>
         <div className="flex items-center gap-3 mb-5">
-          <span className="text-[11px] text-text-muted">Precise</span>
+          <span className="text-[11px] text-text-muted">정확</span>
           <input
             type="range"
             min="0"
@@ -90,15 +90,15 @@ export function ModelSettings({ onClose }: ModelSettingsProps) {
             className="flex-1 accent-accent h-1.5"
             aria-label="Temperature"
           />
-          <span className="text-[11px] text-text-muted">Creative</span>
+          <span className="text-[11px] text-text-muted">창의적</span>
         </div>
 
         <div className="flex justify-end">
           <button
-            className="px-5 py-2 rounded-xl text-[13px] cursor-pointer border-none bg-text-primary text-white hover:bg-text-secondary transition-colors"
+            className="px-5 py-2 rounded-xl text-[13px] cursor-pointer border-none bg-accent text-white hover:bg-accent-hover transition-colors"
             onClick={onClose}
           >
-            Done
+            완료
           </button>
         </div>
       </div>

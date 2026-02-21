@@ -4,7 +4,6 @@ import { ChatWindow } from "@/widgets/chat-window/ChatWindow";
 import { MessageInput } from "@/widgets/message-input/MessageInput";
 import { ModelSettings } from "@/widgets/model-settings/ModelSettings";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
-import { useSettingsStore } from "@/shared/store/settingsStore";
 import { useChatStore } from "@/shared/store/chatStore";
 import {
   exportSessionMarkdown,
@@ -18,14 +17,12 @@ import {
   Download,
   FileText,
   FileJson,
-  ChevronDown,
 } from "lucide-react";
 
 export function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
-  const model = useSettingsStore((s) => s.model);
   const { sessions, activeSessionId } = useChatStore();
   const activeSession = activeSessionId ? sessions[activeSessionId] : null;
 
@@ -33,22 +30,15 @@ export function ChatPage() {
     <div className="flex h-screen bg-bg-primary text-text-primary">
       <Sidebar collapsed={sidebarCollapsed} />
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Minimal top bar */}
-        <header className="flex items-center justify-between px-4 py-2 bg-bg-primary">
+        {/* Top bar */}
+        <header className="flex items-center justify-between px-4 py-2 bg-bg-primary border-b border-transparent">
           <div className="flex items-center gap-2">
             <button
               className="bg-transparent border-none text-text-muted cursor-pointer p-1.5 rounded-lg hover:bg-bg-tertiary hover:text-text-primary transition-colors"
               onClick={() => setSidebarCollapsed((v) => !v)}
-              aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+              aria-label={sidebarCollapsed ? "사이드바 열기" : "사이드바 닫기"}
             >
               {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            </button>
-            <button
-              className="flex items-center gap-1 text-[13px] text-text-secondary bg-transparent border-none cursor-pointer px-2 py-1 rounded-lg hover:bg-bg-tertiary transition-colors"
-              onClick={() => setShowSettings(true)}
-            >
-              {model}
-              <ChevronDown size={13} className="text-text-muted" />
             </button>
           </div>
           <div className="flex items-center gap-1">
@@ -56,7 +46,7 @@ export function ChatPage() {
               <button
                 className="bg-transparent border-none text-text-muted cursor-pointer p-1.5 rounded-lg hover:bg-bg-tertiary hover:text-text-primary transition-colors"
                 onClick={() => setShowExport((v) => !v)}
-                aria-label="Export options"
+                aria-label="내보내기 옵션"
               >
                 <Download size={16} />
               </button>
@@ -91,7 +81,7 @@ export function ChatPage() {
                       setShowExport(false);
                     }}
                   >
-                    <Download size={14} className="text-text-muted" /> Export All
+                    <Download size={14} className="text-text-muted" /> 전체 내보내기
                   </button>
                 </div>
               )}
@@ -99,7 +89,7 @@ export function ChatPage() {
             <button
               className="bg-transparent border-none text-text-muted cursor-pointer p-1.5 rounded-lg hover:bg-bg-tertiary hover:text-text-primary transition-colors"
               onClick={() => setShowSettings(true)}
-              aria-label="Open settings"
+              aria-label="설정 열기"
             >
               <Settings size={16} />
             </button>

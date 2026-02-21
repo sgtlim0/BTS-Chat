@@ -17,27 +17,27 @@ vi.mock("@/features/send-message/sendMessage", () => ({
 describe("MessageInput", () => {
   it("renders input and send button", () => {
     render(<MessageInput />);
-    expect(screen.getByPlaceholderText("Message...")).toBeDefined();
-    expect(screen.getByLabelText("Send message")).toBeDefined();
+    expect(screen.getByPlaceholderText("무엇이든 물어보세요...")).toBeDefined();
+    expect(screen.getByLabelText("메시지 전송")).toBeDefined();
   });
 
   it("has correct aria labels", () => {
     render(<MessageInput />);
-    expect(screen.getByLabelText("Message input")).toBeDefined();
-    expect(screen.getByLabelText("Send message")).toBeDefined();
+    expect(screen.getByLabelText("메시지 입력")).toBeDefined();
+    expect(screen.getByLabelText("메시지 전송")).toBeDefined();
   });
 
   it("disables send when empty", () => {
     render(<MessageInput />);
-    const btn = screen.getByLabelText("Send message");
+    const btn = screen.getByLabelText("메시지 전송");
     expect(btn.hasAttribute("disabled")).toBe(true);
   });
 
   it("enables send when text entered", () => {
     render(<MessageInput />);
-    const input = screen.getByPlaceholderText("Message...");
+    const input = screen.getByPlaceholderText("무엇이든 물어보세요...");
     fireEvent.change(input, { target: { value: "Hello" } });
-    const btn = screen.getByLabelText("Send message");
+    const btn = screen.getByLabelText("메시지 전송");
     expect(btn.hasAttribute("disabled")).toBe(false);
   });
 });

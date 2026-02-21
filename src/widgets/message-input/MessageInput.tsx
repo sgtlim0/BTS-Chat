@@ -1,18 +1,31 @@
 import { useState, useRef, useEffect } from "react";
 import { sendMessage, abortCurrentStream } from "@/features/send-message/sendMessage";
 import { useChatStore } from "@/shared/store/chatStore";
-import { ArrowUp, Square } from "lucide-react";
+import { useSettingsStore, AVAILABLE_MODELS } from "@/shared/store/settingsStore";
+import { ArrowUp, Square, ChevronDown } from "lucide-react";
 
 export function MessageInput() {
   const [text, setText] = useState("");
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const model = useSettingsStore((s) => s.model);
+  const setModel = useSettingsStore((s) => s.setModel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const currentModel = AVAILABLE_MODELS.find((m) => m.id === model) ?? AVAILABLE_MODELS[0];
 
   useEffect(() => {
     if (!isStreaming && textareaRef.current) {
       textareaRef.current.focus();
     }
   }, [isStreaming]);
+
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const handleClickOutside = () => setShowModelPicker(false);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showModelPicker]);
 
   const handleSend = async () => {
     if (isStreaming) {
@@ -46,35 +59,75 @@ export function MessageInput() {
   return (
     <div className="px-6 pb-5 pt-2 bg-bg-primary">
       <div className="max-w-[720px] mx-auto relative">
-        <div className="flex items-end bg-bg-secondary border border-border rounded-2xl transition-all focus-within:border-text-muted focus-within:shadow-sm">
+        <div className="flex items-end bg-bg-secondary border border-border rounded-2xl transition-all focus-within:border-accent/40 focus-within:shadow-sm">
           <textarea
             ref={textareaRef}
             rows={1}
-            placeholder="Message..."
+            placeholder="무엇이든 물어보세요..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleInput}
             className="flex-1 py-3 pl-4 pr-2 bg-transparent border-none text-text-primary text-[14px] font-inherit resize-none outline-none min-h-[44px] max-h-[160px] leading-relaxed placeholder:text-text-muted"
-            aria-label="Message input"
+            aria-label="메시지 입력"
           />
-          <button
-            onClick={handleSend}
-            className={`m-1.5 p-2 rounded-xl flex items-center justify-center transition-colors cursor-pointer border-none ${
-              isStreaming
-                ? "bg-danger hover:bg-danger-hover text-white"
-                : text.trim()
-                ? "bg-text-primary hover:bg-text-secondary text-white"
-                : "bg-bg-tertiary text-text-muted"
-            }`}
-            disabled={!isStreaming && !text.trim()}
-            aria-label={isStreaming ? "Stop streaming" : "Send message"}
-          >
-            {isStreaming ? <Square size={14} /> : <ArrowUp size={16} />}
-          </button>
+          <div className="flex items-center gap-1 m-1.5">
+            {/* Model Picker */}
+            <div className="relative">
+              <button
+                className="flex items-center gap-1 text-[12px] text-text-secondary bg-transparent border-none cursor-pointer px-2 py-1.5 rounded-lg hover:bg-bg-tertiary transition-colors whitespace-nowrap"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowModelPicker((v) => !v);
+                }}
+                aria-label="모델 선택"
+              >
+                {currentModel.name}
+                <ChevronDown size={12} className="text-text-muted" />
+              </button>
+              {showModelPicker && (
+                <div className="absolute bottom-full right-0 mb-1 bg-bg-primary border border-border rounded-xl p-1.5 min-w-[220px] z-50 shadow-lg">
+                  {AVAILABLE_MODELS.map((m) => (
+                    <button
+                      key={m.id}
+                      className={`w-full bg-transparent border-none text-left px-3 py-2 text-[13px] cursor-pointer rounded-lg flex flex-col gap-0.5 transition-colors ${
+                        m.id === model
+                          ? "bg-accent-light text-accent"
+                          : "text-text-primary hover:bg-bg-tertiary"
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModel(m.id);
+                        setShowModelPicker(false);
+                      }}
+                    >
+                      <span className="font-medium">{m.name}</span>
+                      <span className="text-[11px] text-text-muted">{m.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Send / Stop Button */}
+            <button
+              onClick={handleSend}
+              className={`p-2 rounded-xl flex items-center justify-center transition-colors cursor-pointer border-none ${
+                isStreaming
+                  ? "bg-danger hover:bg-danger-hover text-white"
+                  : text.trim()
+                  ? "bg-accent hover:bg-accent-hover text-white"
+                  : "bg-bg-tertiary text-text-muted"
+              }`}
+              disabled={!isStreaming && !text.trim()}
+              aria-label={isStreaming ? "스트리밍 중지" : "메시지 전송"}
+            >
+              {isStreaming ? <Square size={14} /> : <ArrowUp size={16} />}
+            </button>
+          </div>
         </div>
         <p className="text-[11px] text-text-muted text-center mt-2 select-none">
-          AI can make mistakes. Please verify important information.
+          AI는 실수할 수 있습니다. 중요한 정보는 반드시 확인하세요.
         </p>
       </div>
     </div>

@@ -5,9 +5,9 @@ import { ModelSettings } from "@/widgets/model-settings/ModelSettings";
 describe("ModelSettings", () => {
   it("renders settings dialog", () => {
     render(<ModelSettings onClose={vi.fn()} />);
-    expect(screen.getByText("Settings")).toBeDefined();
-    expect(screen.getByLabelText("Select model")).toBeDefined();
-    expect(screen.getByLabelText("System prompt")).toBeDefined();
+    expect(screen.getByText("설정")).toBeDefined();
+    expect(screen.getByLabelText("모델 선택")).toBeDefined();
+    expect(screen.getByLabelText("시스템 프롬프트")).toBeDefined();
     expect(screen.getByLabelText("Temperature")).toBeDefined();
   });
 
@@ -20,7 +20,7 @@ describe("ModelSettings", () => {
   it("calls onClose when close button clicked", () => {
     const onClose = vi.fn();
     render(<ModelSettings onClose={onClose} />);
-    fireEvent.click(screen.getByText("Done"));
+    fireEvent.click(screen.getByText("완료"));
     expect(onClose).toHaveBeenCalled();
   });
 

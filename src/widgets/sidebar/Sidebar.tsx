@@ -7,7 +7,6 @@ import {
   Search,
   MessageSquare,
   FolderOpen,
-  FileCode,
   Sparkles,
 } from "lucide-react";
 import { debounce } from "@/shared/lib/debounce";
@@ -17,10 +16,9 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { icon: MessageSquare, label: "Chats", id: "chats" },
-  { icon: FolderOpen, label: "Projects", id: "projects" },
-  { icon: Sparkles, label: "Artifacts", id: "artifacts" },
-  { icon: FileCode, label: "Code", id: "code" },
+  { icon: MessageSquare, label: "채팅", id: "chats" },
+  { icon: FolderOpen, label: "프로젝트", id: "projects" },
+  { icon: Sparkles, label: "아티팩트", id: "artifacts" },
 ] as const;
 
 export function Sidebar({ collapsed }: SidebarProps) {
@@ -51,23 +49,34 @@ export function Sidebar({ collapsed }: SidebarProps) {
         collapsed ? "w-0 min-w-0" : "w-[260px] min-w-[260px]"
       }`}
     >
+      {/* Brand */}
+      <div className="px-4 pt-4 pb-2 flex items-center gap-2.5">
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-sm font-bold"
+          style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
+        >
+          <span>✦</span>
+        </div>
+        <span className="text-[15px] font-semibold text-text-primary">CardNews AI Chat</span>
+      </div>
+
       {/* New Chat + Search */}
-      <div className="px-3 pt-3 pb-1 flex flex-col gap-1">
+      <div className="px-3 pt-1 pb-1 flex flex-col gap-0.5">
         <button
           className="w-full py-2 px-3 bg-transparent text-text-primary border-none rounded-lg text-[13px] font-medium cursor-pointer flex items-center gap-2.5 hover:bg-sidebar-hover transition-colors"
           onClick={() => createSession()}
-          aria-label="New chat"
+          aria-label="새 채팅"
         >
           <Plus size={16} className="text-text-secondary" />
-          New Chat
+          새 채팅
         </button>
         <button
           className="w-full py-2 px-3 bg-transparent text-text-primary border-none rounded-lg text-[13px] font-medium cursor-pointer flex items-center gap-2.5 hover:bg-sidebar-hover transition-colors"
           onClick={() => setShowSearch(true)}
-          aria-label="Search"
+          aria-label="검색"
         >
           <Search size={16} className="text-text-secondary" />
-          Search
+          검색
         </button>
       </div>
 
@@ -92,7 +101,7 @@ export function Sidebar({ collapsed }: SidebarProps) {
 
       <div className="mx-3 my-2 border-t border-border" />
 
-      {/* Search input (expandable) */}
+      {/* Search input */}
       {showSearch && (
         <div className="relative mx-3 mb-2">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted flex items-center">
@@ -100,19 +109,19 @@ export function Sidebar({ collapsed }: SidebarProps) {
           </span>
           <input
             className="w-full py-2 pr-3 pl-8 bg-bg-primary border border-border rounded-lg text-text-primary text-[13px] outline-none placeholder:text-text-muted focus:border-accent"
-            placeholder="Search conversations..."
+            placeholder="대화 검색..."
             value={searchQuery}
             onChange={handleSearchChange}
-            aria-label="Search messages"
+            aria-label="메시지 검색"
             autoFocus
           />
         </div>
       )}
 
-      {/* Recent Activity / Conversation List */}
+      {/* Recent */}
       <div className="px-3 mb-1">
         <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider px-3">
-          Recent
+          최근
         </span>
       </div>
 

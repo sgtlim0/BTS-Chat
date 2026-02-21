@@ -1,4 +1,4 @@
-import type { Message, Source, RelatedQuestion } from "@/entities/message/model";
+import type { Message } from "@/entities/message/model";
 
 interface StreamChatParams {
   messages: Pick<Message, "role" | "content">[];
@@ -7,26 +7,7 @@ interface StreamChatParams {
   onChunk: (chunk: string) => void;
   onError: (error: string) => void;
   onDone: () => void;
-  onSources?: (sources: Source[]) => void;
-  onRelatedQuestions?: (questions: RelatedQuestion[]) => void;
   signal?: AbortSignal;
-  tools?: boolean;
-}
-
-function parseRelatedQuestions(content: string): { cleanContent: string; questions: RelatedQuestion[] } {
-  const marker = "[RELATED_QUESTIONS]";
-  const idx = content.indexOf(marker);
-  if (idx === -1) return { cleanContent: content, questions: [] };
-
-  const cleanContent = content.substring(0, idx).trim();
-  const questionSection = content.substring(idx + marker.length);
-  const questions = questionSection
-    .split("\n")
-    .map((line) => line.replace(/^-\s*/, "").trim())
-    .filter((line) => line.length > 0)
-    .map((text) => ({ text }));
-
-  return { cleanContent, questions };
 }
 
 export async function streamChat({
@@ -36,35 +17,35 @@ export async function streamChat({
   onChunk,
   onError,
   onDone,
-  onSources,
-  onRelatedQuestions,
   signal,
-  tools = true,
 }: StreamChatParams): Promise<void> {
+  const apiMessages = messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model, systemPrompt, tools }),
+    body: JSON.stringify({ messages: apiMessages, model, systemPrompt }),
     signal,
   });
 
   if (!res.ok) {
     const text = await res.text();
-    onError(`API error (${res.status}): ${text}`);
+    onError(`API 오류 (${res.status}): ${text}`);
     onDone();
     return;
   }
 
   const reader = res.body?.getReader();
   if (!reader) {
-    onError("No response body");
+    onError("응답 본문이 없습니다");
     onDone();
     return;
   }
 
   const decoder = new TextDecoder();
   let buffer = "";
-  let fullContent = "";
 
   try {
     while (true) {
@@ -79,23 +60,13 @@ export async function streamChat({
         if (!line.startsWith("data: ")) continue;
         const data = line.slice(6);
         if (data === "[DONE]") {
-          const { cleanContent, questions } = parseRelatedQuestions(fullContent);
-          if (questions.length > 0 && onRelatedQuestions) {
-            onRelatedQuestions(questions);
-          }
-          if (cleanContent !== fullContent) {
-            // Content was trimmed, we need to update the message
-          }
           onDone();
           return;
         }
         try {
           const parsed = JSON.parse(data);
           if (typeof parsed === "string") {
-            fullContent += parsed;
             onChunk(parsed);
-          } else if (parsed.sources && onSources) {
-            onSources(parsed.sources);
           } else if (parsed.error) {
             onError(parsed.error);
           }
@@ -110,12 +81,5 @@ export async function streamChat({
     }
   }
 
-  const { cleanContent, questions } = parseRelatedQuestions(fullContent);
-  if (questions.length > 0 && onRelatedQuestions) {
-    onRelatedQuestions(questions);
-  }
-  if (cleanContent !== fullContent) {
-    // Content was trimmed
-  }
   onDone();
 }

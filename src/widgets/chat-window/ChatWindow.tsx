@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Sparkles, Palette, LayoutGrid, MessageSquare } from "lucide-react";
 import { useChatStore } from "@/shared/store/chatStore";
 import { sendMessage } from "@/features/send-message/sendMessage";
 import { MessageItem } from "./MessageItem";
@@ -15,6 +15,13 @@ function estimateMessageSize(msg: { content: string; role: string; sources?: unk
   const sourcesHeight = msg.sources && Array.isArray(msg.sources) && msg.sources.length > 0 ? 100 : 0;
   return Math.max(baseHeight, contentHeight + sourcesHeight + 60);
 }
+
+const QUICK_PROMPTS = [
+  { icon: Sparkles, label: "블로그 글쓰기", prompt: "블로그에 올릴 글을 작성해주세요" },
+  { icon: MessageSquare, label: "번역하기", prompt: "영어를 한국어로 번역해주세요" },
+  { icon: Palette, label: "아이디어 브레인스토밍", prompt: "새로운 프로젝트 아이디어를 브레인스토밍해주세요" },
+  { icon: LayoutGrid, label: "코드 작성", prompt: "코드 작성을 도와주세요" },
+];
 
 export function ChatWindow() {
   const sessions = useChatStore((s) => s.sessions);
@@ -92,21 +99,77 @@ export function ChatWindow() {
     [editMessage]
   );
 
-  const handleRelatedQuestionClick = useCallback((text: string) => {
-    sendMessage(text);
+  const handleQuickPrompt = useCallback((prompt: string) => {
+    sendMessage(prompt);
   }, []);
 
   if (messages.length === 0) {
     return (
       <div ref={parentRef} className="flex-1 overflow-y-auto relative">
-        <div className="flex flex-col items-center justify-center h-full gap-4 px-4">
-          <div className="w-10 h-10 rounded-full bg-accent-light flex items-center justify-center">
-            <span className="text-accent text-lg font-semibold">C</span>
+        <div className="flex flex-col items-center justify-center h-full gap-6 px-4 max-w-2xl mx-auto">
+          {/* Logo & Brand */}
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-bold"
+              style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #6d28d9 100%)" }}
+            >
+              <span>✦</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-medium text-accent">AI Chat</span>
+            </div>
           </div>
-          <h2 className="text-xl font-medium text-text-primary m-0">How can I help you today?</h2>
-          <p className="text-[14px] text-text-muted m-0 max-w-md text-center leading-relaxed">
-            Start a conversation by typing a message below. I can help with writing, analysis, coding, and more.
-          </p>
+
+          {/* Heading */}
+          <div className="text-center">
+            <h1
+              className="text-3xl font-bold mb-2 bg-clip-text text-transparent"
+              style={{
+                backgroundImage: "linear-gradient(135deg, #7c3aed, #a855f7, #6d28d9)",
+                backgroundSize: "200% 200%",
+                animation: "gradient-shift 4s ease infinite",
+              }}
+            >
+              무엇을 도와드릴까요?
+            </h1>
+            <p className="text-[14px] text-text-muted leading-relaxed max-w-md mx-auto">
+              AI가 글쓰기, 번역, 코딩, 분석 등 다양한 작업을 도와드립니다.
+              <br />
+              아래 버튼을 누르거나 직접 메시지를 입력해보세요.
+            </p>
+          </div>
+
+          {/* Quick Prompts */}
+          <div className="grid grid-cols-2 gap-3 w-full max-w-lg mt-2">
+            {QUICK_PROMPTS.map(({ icon: Icon, label, prompt }) => (
+              <button
+                key={label}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-bg-primary text-left cursor-pointer hover:bg-accent-light hover:border-accent/30 transition-all group"
+                onClick={() => handleQuickPrompt(prompt)}
+              >
+                <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0 group-hover:bg-accent/10 transition-colors">
+                  <Icon size={18} className="text-accent" />
+                </div>
+                <div>
+                  <span className="text-[13px] font-medium text-text-primary block">{label}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Features */}
+          <div className="flex items-center gap-6 mt-4">
+            {[
+              { label: "Claude AI", desc: "Bedrock" },
+              { label: "실시간 스트리밍", desc: "빠른 응답" },
+              { label: "마크다운", desc: "서식 지원" },
+            ].map(({ label, desc }) => (
+              <div key={label} className="flex flex-col items-center gap-0.5">
+                <span className="text-[12px] font-medium text-text-secondary">{label}</span>
+                <span className="text-[11px] text-text-muted">{desc}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -150,7 +213,6 @@ export function ChatWindow() {
                   onDelete={handleDelete}
                   onRetry={msg.role === "user" ? handleRetry : undefined}
                   onEdit={msg.role === "user" ? handleEdit : undefined}
-                  onRelatedQuestionClick={handleRelatedQuestionClick}
                 />
               )}
             </div>
@@ -162,9 +224,9 @@ export function ChatWindow() {
         <button
           className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-bg-primary border border-border text-text-secondary cursor-pointer px-3.5 py-2 rounded-full text-[12px] flex items-center gap-1.5 z-10 shadow-sm hover:bg-bg-secondary transition-colors"
           onClick={scrollToBottom}
-          aria-label="Scroll to bottom"
+          aria-label="아래로 스크롤"
         >
-          <ArrowDown size={13} /> New messages
+          <ArrowDown size={13} /> 새 메시지
         </button>
       )}
     </div>

@@ -41,7 +41,7 @@ describe("MessageItem", () => {
     render(
       <MessageItem message={assistantMessage} isLast={false} isStreaming={false} />
     );
-    expect(screen.getByText("Assistant")).toBeDefined();
+    expect(screen.getByText("CardNews AI")).toBeDefined();
   });
 
   it("shows streaming cursor when streaming", () => {
@@ -49,7 +49,7 @@ describe("MessageItem", () => {
       <MessageItem message={assistantMessage} isLast={true} isStreaming={true} />
     );
     // Cursor element should be present
-    const container = screen.getByText("Assistant").closest("div")!.parentElement!;
+    const container = screen.getByText("CardNews AI").closest("div")!.parentElement!;
     expect(container.querySelector(".animate-\\[blink_0\\.8s_infinite\\]")).toBeDefined();
   });
 
@@ -63,36 +63,8 @@ describe("MessageItem", () => {
         onDelete={onDelete}
       />
     );
-    const deleteBtn = screen.getByLabelText("Delete message");
+    const deleteBtn = screen.getByLabelText("메시지 삭제");
     fireEvent.click(deleteBtn);
     expect(onDelete).toHaveBeenCalledWith("u1");
-  });
-
-  it("renders source cards when sources present", () => {
-    render(
-      <MessageItem
-        message={messageWithSources}
-        isLast={false}
-        isStreaming={false}
-        onRelatedQuestionClick={vi.fn()}
-      />
-    );
-    expect(screen.getByText("Example")).toBeDefined();
-    expect(screen.getByText("example.com")).toBeDefined();
-  });
-
-  it("renders related questions when present", () => {
-    const onClick = vi.fn();
-    render(
-      <MessageItem
-        message={messageWithSources}
-        isLast={false}
-        isStreaming={false}
-        onRelatedQuestionClick={onClick}
-      />
-    );
-    const btn = screen.getByText("What about X?");
-    fireEvent.click(btn);
-    expect(onClick).toHaveBeenCalledWith("What about X?");
   });
 });
