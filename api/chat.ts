@@ -1,6 +1,4 @@
-import OpenAI from "openai";
-
-export const config = { maxDuration: 60 };
+export const config = { runtime: "edge", maxDuration: 60 };
 
 const DEFAULT_MODEL = "gpt-4o";
 
@@ -11,14 +9,6 @@ interface ChatMessage {
 
 interface ChatRequest {
   messages: ChatMessage[];
-}
-
-function getClient(): OpenAI | null {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (apiKey) {
-    return new OpenAI({ apiKey });
-  }
-  return null;
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -32,31 +22,65 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response("messages required", { status: 400 });
   }
 
-  const client = getClient();
-  if (!client) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     return mockStream(messages);
   }
 
-  const stream = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
-    max_tokens: 4096,
-    stream: true,
-    messages: [
-      { role: "system", content: "You are a helpful, friendly assistant. Answer concisely and clearly." },
-      ...messages,
-    ],
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+      max_tokens: 4096,
+      stream: true,
+      messages: [
+        { role: "system", content: "You are a helpful, friendly assistant. Answer concisely and clearly." },
+        ...messages,
+      ],
+    }),
   });
 
+  if (!openaiRes.ok) {
+    const errText = await openaiRes.text();
+    return new Response(`OpenAI API error: ${openaiRes.status} ${errText}`, { status: 502 });
+  }
+
+  const reader = openaiRes.body!.getReader();
+  const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+
   const readable = new ReadableStream({
     async start(controller) {
+      let buffer = "";
       try {
-        for await (const chunk of stream) {
-          const delta = chunk.choices[0]?.delta?.content;
-          if (delta) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(delta)}\n\n`)
-            );
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              break;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify(delta)}\n\n`)
+                );
+              }
+            } catch {}
           }
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
