@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export interface ChatOptions {
   model?: string;
-  maxTokens?: number;
   systemPrompt?: string;
+  apiKey?: string;
   mock?: boolean;
 }
 
@@ -12,19 +12,25 @@ interface Message {
   content: string;
 }
 
+interface GeminiCandidate {
+  content: { parts: { text: string }[] };
+}
+
+interface GeminiStreamChunk {
+  candidates?: GeminiCandidate[];
+}
+
 export class Chat {
-  private client: Anthropic | null;
   private messages: Message[] = [];
   private model: string;
-  private maxTokens: number;
   private systemPrompt: string | undefined;
+  private apiKey: string | undefined;
   private mock: boolean;
 
   constructor(options: ChatOptions = {}) {
     this.mock = options.mock ?? false;
-    this.client = this.mock ? null : new Anthropic();
-    this.model = options.model ?? "claude-opus-4-6";
-    this.maxTokens = options.maxTokens ?? 4096;
+    this.apiKey = options.apiKey;
+    this.model = options.model ?? "gemini-2.0-flash";
     this.systemPrompt = options.systemPrompt;
   }
 
@@ -36,22 +42,53 @@ export class Chat {
       return;
     }
 
-    const stream = this.client!.messages.stream({
-      model: this.model,
-      max_tokens: this.maxTokens,
-      system: this.systemPrompt,
-      messages: this.messages,
+    const contents = this.messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const body: Record<string, unknown> = { contents };
+    if (this.systemPrompt) {
+      body.systemInstruction = { parts: [{ text: this.systemPrompt }] };
+    }
+
+    const url = `${GEMINI_BASE_URL}/${this.model}:streamGenerateContent?alt=sse&key=${this.apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
 
-    const chunks: string[] = [];
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gemini API error ${res.status}: ${err}`);
+    }
 
-    for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
-        chunks.push(event.delta.text);
-        yield event.delta.text;
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    const chunks: string[] = [];
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (!data) continue;
+        try {
+          const parsed = JSON.parse(data) as GeminiStreamChunk;
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            chunks.push(text);
+            yield text;
+          }
+        } catch {}
       }
     }
 
@@ -81,13 +118,10 @@ export class Chat {
     const lower = input.toLowerCase();
 
     if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
-      return "Hello! I'm Claude (mock mode). How can I help you today?";
+      return "Hello! I'm Gemini (mock mode). How can I help you today?";
     }
     if (lower.includes("name")) {
-      return "I'm Claude, an AI assistant made by Anthropic. Currently running in mock mode for testing.";
-    }
-    if (lower.includes("how are you")) {
-      return "I'm doing well, thank you for asking! I'm a mock instance, but my spirits are high.";
+      return "I'm Gemini, a language model by Google. Currently running in mock mode for testing.";
     }
     if (lower.includes("remember") || lower.includes("said")) {
       if (turnCount > 1) {
@@ -98,9 +132,9 @@ export class Chat {
     }
 
     const responses = [
-      `That's an interesting point about "${input.slice(0, 40)}". In mock mode, I echo your input and simulate streaming token by token.`,
-      `You said: "${input.slice(0, 40)}". This is turn #${turnCount} of our conversation. The multi-turn history is working correctly!`,
-      `Great question! This mock response simulates the Claude API streaming behavior. Your message had ${input.length} characters.`,
+      `That's an interesting point about "${input.slice(0, 40)}". In mock mode, I simulate streaming token by token.`,
+      `You said: "${input.slice(0, 40)}". This is turn #${turnCount}. The multi-turn history is working correctly!`,
+      `Great question! This mock response simulates Gemini API streaming. Your message had ${input.length} characters.`,
     ];
 
     return responses[turnCount % responses.length];

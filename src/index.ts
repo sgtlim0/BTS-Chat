@@ -5,19 +5,21 @@ import { Chat } from "./chat.js";
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Answer concisely and clearly.`;
 
 async function main() {
-  const mock = !process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
+  const mock = !apiKey;
 
   const chat = new Chat({
     systemPrompt: SYSTEM_PROMPT,
+    apiKey,
     mock,
   });
 
   const rl = readline.createInterface({ input, output });
 
   if (mock) {
-    console.log("[Mock mode: no ANTHROPIC_API_KEY found]\n");
+    console.log("[Mock mode: no GEMINI_API_KEY found]\n");
   }
-  console.log("Claude Chatbot (type /quit to exit, /reset to clear history)\n");
+  console.log("Gemini Chatbot (type /quit to exit, /reset to clear history)\n");
 
   rl.on("close", () => {
     console.log("\nBye!");
@@ -45,7 +47,7 @@ async function main() {
       continue;
     }
 
-    process.stdout.write("\nClaude: ");
+    process.stdout.write("\nGemini: ");
 
     try {
       for await (const chunk of chat.sendStream(trimmed)) {

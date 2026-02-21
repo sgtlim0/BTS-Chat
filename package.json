@@ -1,16 +1,14 @@
 {
-  "name": "claude-chatbot",
+  "name": "gemini-chatbot",
   "version": "1.0.0",
-  "description": "Multi-turn conversational chatbot using Claude API",
+  "description": "Multi-turn conversational chatbot using Gemini API",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts"
   },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.52.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
