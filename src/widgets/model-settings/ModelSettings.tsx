@@ -1,112 +1,5 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
+import { useEffect, useRef } from "react";
 import { useSettingsStore, AVAILABLE_MODELS } from "@/shared/store/settingsStore";
-import { theme } from "@/shared/ui/theme";
-
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-`;
-
-const Panel = styled.div`
-  background: ${theme.colors.bgSecondary};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.lg};
-  padding: 28px;
-  width: 420px;
-  max-width: 90vw;
-  max-height: 80vh;
-  overflow-y: auto;
-`;
-
-const Title = styled.h2`
-  margin: 0 0 20px;
-  font-size: 18px;
-  color: ${theme.colors.textPrimary};
-`;
-
-const Label = styled.label`
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: ${theme.colors.textSecondary};
-  margin-bottom: 6px;
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  background: ${theme.colors.bgTertiary};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.md};
-  color: ${theme.colors.textPrimary};
-  font-size: 14px;
-  outline: none;
-  margin-bottom: 20px;
-  &:focus {
-    border-color: ${theme.colors.accent};
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  background: ${theme.colors.bgTertiary};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.md};
-  color: ${theme.colors.textPrimary};
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  resize: vertical;
-  min-height: 80px;
-  margin-bottom: 20px;
-  &:focus {
-    border-color: ${theme.colors.accent};
-  }
-`;
-
-const RangeRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-`;
-
-const RangeInput = styled.input`
-  flex: 1;
-  accent-color: ${theme.colors.accent};
-`;
-
-const RangeValue = styled.span`
-  font-size: 14px;
-  color: ${theme.colors.textPrimary};
-  min-width: 32px;
-  text-align: right;
-`;
-
-const BtnRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-`;
-
-const Btn = styled.button<{ variant?: "primary" | "ghost" }>`
-  padding: 10px 20px;
-  border-radius: ${theme.radius.md};
-  font-size: 14px;
-  cursor: pointer;
-  border: none;
-  ${(p) =>
-    p.variant === "primary"
-      ? `background: ${theme.colors.accent}; color: white; &:hover { background: ${theme.colors.accentHover}; }`
-      : `background: ${theme.colors.bgTertiary}; color: ${theme.colors.textSecondary}; &:hover { background: ${theme.colors.border}; }`}
-`;
 
 interface ModelSettingsProps {
   onClose: () => void;
@@ -115,47 +8,91 @@ interface ModelSettingsProps {
 export function ModelSettings({ onClose }: ModelSettingsProps) {
   const { model, systemPrompt, temperature, setModel, setSystemPrompt, setTemperature } =
     useSettingsStore();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
 
   return (
-    <Overlay onClick={onClose}>
-      <Panel onClick={(e) => e.stopPropagation()}>
-        <Title>Settings</Title>
+    <div
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="bg-bg-primary border border-border rounded-2xl p-7 w-[420px] max-w-[90vw] max-h-[80vh] overflow-y-auto shadow-xl outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="m-0 mb-5 text-lg text-text-primary font-semibold">Settings</h2>
 
-        <Label>Model</Label>
-        <Select value={model} onChange={(e) => setModel(e.target.value)}>
+        <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
+          Model
+        </label>
+        <select
+          className="w-full p-2.5 bg-bg-tertiary border border-border rounded-lg text-text-primary text-sm outline-none mb-5 focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          aria-label="Select model"
+        >
           {AVAILABLE_MODELS.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}
             </option>
           ))}
-        </Select>
+        </select>
 
-        <Label>System Prompt</Label>
-        <TextArea
+        <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
+          System Prompt
+        </label>
+        <textarea
+          className="w-full p-2.5 bg-bg-tertiary border border-border rounded-lg text-text-primary text-[13px] font-inherit outline-none resize-y min-h-[80px] mb-5 focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           placeholder="System prompt for the AI..."
+          aria-label="System prompt"
         />
 
-        <Label>Temperature: </Label>
-        <RangeRow>
-          <RangeInput
+        <label className="block text-[13px] font-medium text-text-secondary mb-1.5">
+          Temperature
+        </label>
+        <div className="flex items-center gap-3 mb-5">
+          <input
             type="range"
             min="0"
             max="2"
             step="0.1"
             value={temperature}
             onChange={(e) => setTemperature(Number(e.target.value))}
+            className="flex-1 accent-accent"
+            aria-label="Temperature"
           />
-          <RangeValue>{temperature}</RangeValue>
-        </RangeRow>
+          <span className="text-sm text-text-primary min-w-[32px] text-right">
+            {temperature}
+          </span>
+        </div>
 
-        <BtnRow>
-          <Btn variant="ghost" onClick={onClose}>
+        <div className="flex justify-end gap-2.5">
+          <button
+            className="px-5 py-2.5 rounded-lg text-sm cursor-pointer border-none bg-bg-tertiary text-text-secondary hover:bg-border transition-colors focus-visible:ring-2 focus-visible:ring-accent/30"
+            onClick={onClose}
+          >
             Close
-          </Btn>
-        </BtnRow>
-      </Panel>
-    </Overlay>
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

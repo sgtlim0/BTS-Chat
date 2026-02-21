@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Message, ChatSession } from "@/entities/message/model";
+import type { Message, ChatSession, Source, RelatedQuestion } from "@/entities/message/model";
 import { generateId } from "@/shared/lib/generateId";
 
 interface ChatState {
@@ -21,6 +21,10 @@ interface ChatState {
   finishStreaming: () => void;
   setStreaming: (value: boolean) => void;
   setSearchQuery: (query: string) => void;
+
+  setMessageSources: (msgId: string, sources: Source[]) => void;
+  setMessageRelatedQuestions: (msgId: string, questions: RelatedQuestion[]) => void;
+  editMessage: (msgId: string, newContent: string) => void;
 
   getActiveMessages: () => Message[];
   clearActiveSession: () => void;
@@ -158,6 +162,66 @@ export const useChatStore = create<ChatState>()(
       setStreaming: (value) => set({ isStreaming: value }),
 
       setSearchQuery: (query) => set({ searchQuery: query }),
+
+      setMessageSources: (msgId, sources) => {
+        const { activeSessionId } = get();
+        if (!activeSessionId) return;
+        set((state) => {
+          const session = state.sessions[activeSessionId];
+          if (!session) return state;
+          return {
+            sessions: {
+              ...state.sessions,
+              [activeSessionId]: {
+                ...session,
+                messages: session.messages.map((m) =>
+                  m.id === msgId ? { ...m, sources } : m
+                ),
+              },
+            },
+          };
+        });
+      },
+
+      setMessageRelatedQuestions: (msgId, questions) => {
+        const { activeSessionId } = get();
+        if (!activeSessionId) return;
+        set((state) => {
+          const session = state.sessions[activeSessionId];
+          if (!session) return state;
+          return {
+            sessions: {
+              ...state.sessions,
+              [activeSessionId]: {
+                ...session,
+                messages: session.messages.map((m) =>
+                  m.id === msgId ? { ...m, relatedQuestions: questions } : m
+                ),
+              },
+            },
+          };
+        });
+      },
+
+      editMessage: (msgId, newContent) => {
+        const { activeSessionId } = get();
+        if (!activeSessionId) return;
+        set((state) => {
+          const session = state.sessions[activeSessionId];
+          if (!session) return state;
+          const msgIndex = session.messages.findIndex((m) => m.id === msgId);
+          if (msgIndex === -1) return state;
+          const updatedMessages = session.messages
+            .slice(0, msgIndex + 1)
+            .map((m) => (m.id === msgId ? { ...m, content: newContent } : m));
+          return {
+            sessions: {
+              ...state.sessions,
+              [activeSessionId]: { ...session, messages: updatedMessages },
+            },
+          };
+        });
+      },
 
       getActiveMessages: () => {
         const { activeSessionId, sessions } = get();

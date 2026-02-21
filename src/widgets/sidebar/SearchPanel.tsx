@@ -1,45 +1,5 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useChatStore } from "@/shared/store/chatStore";
 import { searchMessages } from "@/features/search/searchMessages";
-import { theme } from "@/shared/ui/theme";
-
-const Container = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px;
-`;
-
-const ResultItem = styled.div`
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: ${theme.radius.md};
-  cursor: pointer;
-  &:hover {
-    background: ${theme.colors.sidebarHover};
-  }
-`;
-
-const SessionTitle = styled.div`
-  font-size: 11px;
-  color: ${theme.colors.accent};
-  margin-bottom: 4px;
-`;
-
-const Snippet = styled.div`
-  font-size: 12px;
-  color: ${theme.colors.textSecondary};
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const NoResults = styled.div`
-  padding: 20px;
-  text-align: center;
-  color: ${theme.colors.textMuted};
-  font-size: 13px;
-`;
 
 interface SearchPanelProps {
   onClose: () => void;
@@ -51,26 +11,32 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
 
   if (results.length === 0) {
     return (
-      <Container>
-        <NoResults>No results found</NoResults>
-      </Container>
+      <div className="flex-1 overflow-y-auto px-2">
+        <div className="p-5 text-center text-text-muted text-[13px]">
+          No results found
+        </div>
+      </div>
     );
   }
 
   return (
-    <Container>
+    <div className="flex-1 overflow-y-auto px-2" role="list">
       {results.slice(0, 50).map((r, i) => (
-        <ResultItem
+        <div
           key={`${r.sessionId}-${r.message.id}-${i}`}
+          role="listitem"
+          className="px-3 py-2.5 mb-1 rounded-lg cursor-pointer hover:bg-sidebar-hover transition-colors"
           onClick={() => {
             switchSession(r.sessionId);
             onClose();
           }}
         >
-          <SessionTitle>{r.sessionTitle}</SessionTitle>
-          <Snippet>{r.message.content.slice(0, 80)}</Snippet>
-        </ResultItem>
+          <div className="text-[11px] text-accent mb-1">{r.sessionTitle}</div>
+          <div className="text-xs text-text-secondary overflow-hidden text-ellipsis whitespace-nowrap">
+            {r.message.content.slice(0, 80)}
+          </div>
+        </div>
       ))}
-    </Container>
+    </div>
   );
 }

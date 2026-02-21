@@ -1,87 +1,7 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useChatStore } from "@/shared/store/chatStore";
-import { theme } from "@/shared/ui/theme";
 import { Pin, PinOff, Trash2 } from "lucide-react";
 import { isToday, isYesterday, isThisWeek, isThisMonth, format } from "date-fns";
 import type { ChatSession } from "@/entities/message/model";
-
-const List = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px;
-`;
-
-const GroupLabel = styled.div`
-  font-size: 11px;
-  font-weight: 600;
-  color: ${theme.colors.textMuted};
-  padding: 12px 12px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const Item = styled.div<{ active: boolean }>`
-  padding: 10px 12px;
-  margin-bottom: 2px;
-  border-radius: ${theme.radius.md};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: ${(p) => (p.active ? theme.colors.sidebarActive : "transparent")};
-  &:hover {
-    background: ${(p) =>
-      p.active ? theme.colors.sidebarActive : theme.colors.sidebarHover};
-  }
-`;
-
-const Title = styled.span`
-  font-size: 13px;
-  color: ${theme.colors.textPrimary};
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-`;
-
-const PinIcon = styled.span`
-  color: ${theme.colors.accent};
-  margin-right: 4px;
-  display: flex;
-  align-items: center;
-`;
-
-const Actions = styled.div`
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  ${Item}:hover & {
-    opacity: 1;
-  }
-`;
-
-const ActionBtn = styled.button`
-  background: none;
-  border: none;
-  color: ${theme.colors.textMuted};
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  &:hover {
-    color: ${theme.colors.textPrimary};
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const DeleteBtn = styled(ActionBtn)`
-  &:hover {
-    color: ${theme.colors.danger};
-    background: rgba(239, 68, 68, 0.1);
-  }
-`;
 
 function getDateGroup(timestamp: number): string {
   const date = new Date(timestamp);
@@ -124,64 +44,72 @@ export function ConversationList() {
 
   if (allSessions.length === 0) {
     return (
-      <List>
-        <div
-          style={{
-            padding: "20px",
-            textAlign: "center",
-            color: theme.colors.textMuted,
-            fontSize: "13px",
-          }}
-        >
+      <div className="flex-1 overflow-y-auto px-2" role="list">
+        <div className="p-5 text-center text-text-muted text-[13px]">
           No conversations yet
         </div>
-      </List>
+      </div>
     );
   }
 
   const groups = groupSessions(allSessions);
 
   return (
-    <List>
+    <div className="flex-1 overflow-y-auto px-2" role="list">
       {groups.map((group) => (
         <div key={group.label}>
-          <GroupLabel>{group.label}</GroupLabel>
+          <div className="text-[11px] font-semibold text-text-muted px-3 pt-3 pb-1 uppercase tracking-wide">
+            {group.label}
+          </div>
           {group.items.map((session) => (
-            <Item
+            <div
               key={session.id}
-              active={session.id === activeSessionId}
+              role="listitem"
+              className={`flex items-center justify-between px-3 py-2.5 mb-0.5 rounded-lg cursor-pointer group/item transition-colors ${
+                session.id === activeSessionId
+                  ? "bg-sidebar-active"
+                  : "hover:bg-sidebar-hover"
+              }`}
               onClick={() => switchSession(session.id)}
             >
-              {session.pinned && (
-                <PinIcon>
-                  <Pin size={12} />
-                </PinIcon>
-              )}
-              <Title>{session.title}</Title>
-              <Actions>
-                <ActionBtn
+              <div className="flex items-center flex-1 min-w-0">
+                {session.pinned && (
+                  <span className="text-accent mr-1 flex items-center">
+                    <Pin size={12} />
+                  </span>
+                )}
+                <span className="text-[13px] text-text-primary overflow-hidden text-ellipsis whitespace-nowrap">
+                  {session.title}
+                </span>
+              </div>
+              <div className="flex gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                <button
+                  className="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded flex items-center hover:text-text-primary hover:bg-black/5"
                   onClick={(e) => {
                     e.stopPropagation();
                     togglePin(session.id);
                   }}
                   title={session.pinned ? "Unpin" : "Pin"}
+                  aria-label={session.pinned ? "Unpin conversation" : "Pin conversation"}
                 >
                   {session.pinned ? <PinOff size={13} /> : <Pin size={13} />}
-                </ActionBtn>
-                <DeleteBtn
+                </button>
+                <button
+                  className="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded flex items-center hover:text-danger hover:bg-danger/10"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteSession(session.id);
                   }}
                   title="Delete"
+                  aria-label="Delete conversation"
                 >
                   <Trash2 size={13} />
-                </DeleteBtn>
-              </Actions>
-            </Item>
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       ))}
-    </List>
+    </div>
   );
 }

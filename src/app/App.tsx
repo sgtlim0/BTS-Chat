@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useChatStore } from "@/shared/store/chatStore";
-import { GlobalStyles } from "./GlobalStyles";
 import { ChatPage } from "@/pages/chat/ChatPage";
 
 export default function App() {
@@ -12,10 +11,5 @@ export default function App() {
     }
   }, []);
 
-  return (
-    <>
-      <GlobalStyles />
-      <ChatPage />
-    </>
-  );
+  return <ChatPage />;
 }

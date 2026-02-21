@@ -1,10 +1,9 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useState } from "react";
 import { Sidebar } from "@/widgets/sidebar/Sidebar";
 import { ChatWindow } from "@/widgets/chat-window/ChatWindow";
 import { MessageInput } from "@/widgets/message-input/MessageInput";
 import { ModelSettings } from "@/widgets/model-settings/ModelSettings";
+import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 import { useSettingsStore } from "@/shared/store/settingsStore";
 import { useChatStore } from "@/shared/store/chatStore";
 import {
@@ -12,7 +11,6 @@ import {
   exportSessionJson,
   exportAllSessionsJson,
 } from "@/features/export-chat/exportChat";
-import { theme } from "@/shared/ui/theme";
 import {
   PanelLeftOpen,
   PanelLeftClose,
@@ -21,101 +19,6 @@ import {
   FileText,
   FileJson,
 } from "lucide-react";
-
-const Layout = styled.div`
-  display: flex;
-  height: 100vh;
-  background: ${theme.colors.bgPrimary};
-  color: ${theme.colors.textPrimary};
-`;
-
-const Main = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-`;
-
-const TopBar = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px;
-  border-bottom: 1px solid ${theme.colors.border};
-  background: ${theme.colors.bgPrimary};
-`;
-
-const TopBarLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const TopBarRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const IconBtn = styled.button`
-  background: none;
-  border: none;
-  color: ${theme.colors.textSecondary};
-  cursor: pointer;
-  padding: 6px;
-  border-radius: ${theme.radius.sm};
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  &:hover {
-    background: ${theme.colors.bgTertiary};
-    color: ${theme.colors.textPrimary};
-  }
-`;
-
-const ModelBadge = styled.span`
-  font-size: 12px;
-  padding: 4px 10px;
-  background: ${theme.colors.bgTertiary};
-  border-radius: 20px;
-  color: ${theme.colors.textSecondary};
-`;
-
-const DropdownWrapper = styled.div`
-  position: relative;
-`;
-
-const Dropdown = styled.div`
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: ${theme.colors.bgSecondary};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.md};
-  padding: 4px;
-  min-width: 160px;
-  z-index: 50;
-  box-shadow: ${theme.shadow.md};
-`;
-
-const DropdownItem = styled.button`
-  width: 100%;
-  background: none;
-  border: none;
-  color: ${theme.colors.textPrimary};
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  &:hover {
-    background: ${theme.colors.bgTertiary};
-  }
-`;
 
 export function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -126,64 +29,85 @@ export function ChatPage() {
   const activeSession = activeSessionId ? sessions[activeSessionId] : null;
 
   return (
-    <Layout>
+    <div className="flex h-screen bg-bg-primary text-text-primary">
       <Sidebar collapsed={sidebarCollapsed} />
-      <Main>
-        <TopBar>
-          <TopBarLeft>
-            <IconBtn onClick={() => setSidebarCollapsed((v) => !v)}>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="flex items-center justify-between px-5 py-2.5 border-b border-border bg-bg-primary">
+          <div className="flex items-center gap-3">
+            <button
+              className="bg-transparent border-none text-text-secondary cursor-pointer p-1.5 rounded-md flex items-center gap-1.5 text-[13px] hover:bg-bg-tertiary hover:text-text-primary transition-colors focus-visible:ring-2 focus-visible:ring-accent/30"
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+            >
               {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            </IconBtn>
-            <ModelBadge>{model}</ModelBadge>
-          </TopBarLeft>
-          <TopBarRight>
-            <DropdownWrapper>
-              <IconBtn onClick={() => setShowExport((v) => !v)}>
+            </button>
+            <span className="text-xs px-2.5 py-1 bg-bg-tertiary rounded-full text-text-secondary">
+              {model}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                className="bg-transparent border-none text-text-secondary cursor-pointer p-1.5 rounded-md flex items-center gap-1.5 text-[13px] hover:bg-bg-tertiary hover:text-text-primary transition-colors focus-visible:ring-2 focus-visible:ring-accent/30"
+                onClick={() => setShowExport((v) => !v)}
+                aria-label="Export options"
+              >
                 <Download size={16} /> Export
-              </IconBtn>
+              </button>
               {showExport && (
-                <Dropdown>
+                <div className="absolute top-full right-0 mt-1 bg-bg-primary border border-border rounded-lg p-1 min-w-[160px] z-50 shadow-lg">
                   {activeSession && (
                     <>
-                      <DropdownItem
+                      <button
+                        className="w-full bg-transparent border-none text-text-primary px-3 py-2 text-[13px] cursor-pointer rounded-md flex items-center gap-2 hover:bg-bg-tertiary transition-colors"
                         onClick={() => {
                           exportSessionMarkdown(activeSession);
                           setShowExport(false);
                         }}
                       >
                         <FileText size={14} /> Export as Markdown
-                      </DropdownItem>
-                      <DropdownItem
+                      </button>
+                      <button
+                        className="w-full bg-transparent border-none text-text-primary px-3 py-2 text-[13px] cursor-pointer rounded-md flex items-center gap-2 hover:bg-bg-tertiary transition-colors"
                         onClick={() => {
                           exportSessionJson(activeSession);
                           setShowExport(false);
                         }}
                       >
                         <FileJson size={14} /> Export as JSON
-                      </DropdownItem>
+                      </button>
                     </>
                   )}
-                  <DropdownItem
+                  <button
+                    className="w-full bg-transparent border-none text-text-primary px-3 py-2 text-[13px] cursor-pointer rounded-md flex items-center gap-2 hover:bg-bg-tertiary transition-colors"
                     onClick={() => {
                       exportAllSessionsJson(sessions);
                       setShowExport(false);
                     }}
                   >
                     <Download size={14} /> Export All (JSON)
-                  </DropdownItem>
-                </Dropdown>
+                  </button>
+                </div>
               )}
-            </DropdownWrapper>
-            <IconBtn onClick={() => setShowSettings(true)}>
+            </div>
+            <button
+              className="bg-transparent border-none text-text-secondary cursor-pointer p-1.5 rounded-md flex items-center gap-1.5 text-[13px] hover:bg-bg-tertiary hover:text-text-primary transition-colors focus-visible:ring-2 focus-visible:ring-accent/30"
+              onClick={() => setShowSettings(true)}
+              aria-label="Open settings"
+            >
               <Settings size={16} /> Settings
-            </IconBtn>
-          </TopBarRight>
-        </TopBar>
-        <ChatWindow />
-        <MessageInput />
-      </Main>
+            </button>
+          </div>
+        </header>
+        <ErrorBoundary>
+          <ChatWindow />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <MessageInput />
+        </ErrorBoundary>
+      </div>
 
       {showSettings && <ModelSettings onClose={() => setShowSettings(false)} />}
-    </Layout>
+    </div>
   );
 }

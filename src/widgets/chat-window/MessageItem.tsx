@@ -1,176 +1,23 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
-import { keyframes } from "@emotion/react";
 import { memo, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github-dark.css";
-import { Copy, Check, Trash2, RefreshCw, Wrench } from "lucide-react";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import "highlight.js/styles/github.css";
+import { Copy, Check, Trash2, RefreshCw, Wrench, Pencil } from "lucide-react";
 import type { Message } from "@/entities/message/model";
-import { theme } from "@/shared/ui/theme";
+import { SourceCards } from "@/widgets/sources/SourceCards";
+import { RelatedQuestions } from "@/widgets/related-questions/RelatedQuestions";
+import { SearchBadge } from "@/widgets/search-badge/SearchBadge";
 
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
-const Row = styled.div<{ role: string }>`
-  display: flex;
-  justify-content: ${(p) => (p.role === "user" ? "flex-end" : "flex-start")};
-  margin-bottom: 16px;
-  animation: ${fadeIn} 0.2s ease-out;
-  position: relative;
-  group: message;
-`;
-
-const Bubble = styled.div<{ role: string }>`
-  max-width: 85%;
-  padding: 12px 16px;
-  border-radius: ${theme.radius.lg};
-  font-size: 14px;
-  line-height: 1.7;
-  word-break: break-word;
-  color: ${theme.colors.textPrimary};
-  background: ${(p) =>
-    p.role === "user"
-      ? theme.colors.userBubble
-      : p.role === "tool"
-      ? "#065f46"
-      : theme.colors.assistantBubble};
-  border: ${(p) =>
-    p.role === "assistant" ? `1px solid ${theme.colors.border}` : "none"};
-  ${(p) =>
-    p.role === "user"
-      ? `border-bottom-right-radius: 4px;`
-      : `border-bottom-left-radius: 4px;`}
-
-  p { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
-  ul, ol { margin: 4px 0 8px 20px; }
-  table {
-    border-collapse: collapse;
-    margin: 8px 0;
-    width: 100%;
-    th, td {
-      border: 1px solid ${theme.colors.border};
-      padding: 6px 10px;
-      font-size: 13px;
-    }
-    th { background: ${theme.colors.bgTertiary}; }
-  }
-  pre {
-    background: #0f172a;
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 8px 0;
-    position: relative;
-  }
-  code {
-    font-family: "Fira Code", "Consolas", monospace;
-    font-size: 13px;
-  }
-  :not(pre) > code {
-    background: ${theme.colors.bgTertiary};
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
-  blockquote {
-    border-left: 3px solid ${theme.colors.accent};
-    margin: 8px 0;
-    padding: 4px 12px;
-    color: ${theme.colors.textSecondary};
-  }
-  a { color: ${theme.colors.accent}; }
-`;
-
-const blink = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-`;
-
-const Cursor = styled.span`
-  display: inline-block;
-  width: 6px;
-  height: 16px;
-  background: ${theme.colors.accent};
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  animation: ${blink} 0.8s infinite;
-`;
-
-const RoleLabel = styled.div<{ role: string }>`
-  font-size: 11px;
-  font-weight: 600;
-  color: ${theme.colors.textMuted};
-  margin-bottom: 4px;
-  text-align: ${(p) => (p.role === "user" ? "right" : "left")};
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: ${(p) => (p.role === "user" ? "flex-end" : "flex-start")};
-`;
-
-const Actions = styled.div`
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-  justify-content: flex-end;
-  opacity: 0;
-  transition: opacity 0.15s;
-`;
-
-const Wrapper = styled.div`
-  &:hover ${Actions} {
-    opacity: 1;
-  }
-`;
-
-const ActionBtn = styled.button`
-  background: none;
-  border: none;
-  color: ${theme.colors.textMuted};
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  &:hover {
-    color: ${theme.colors.textPrimary};
-    background: ${theme.colors.bgTertiary};
-  }
-`;
-
-const CopyCodeBtn = styled.button`
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: ${theme.colors.bgTertiary};
-  border: 1px solid ${theme.colors.border};
-  color: ${theme.colors.textMuted};
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 0.15s;
-  &:hover {
-    color: ${theme.colors.textPrimary};
-  }
-`;
-
-const PreWrapper = styled.div`
-  position: relative;
-  &:hover ${CopyCodeBtn} {
-    opacity: 1;
-  }
-`;
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [...(defaultSchema.attributes?.code || []), "className"],
+    span: [...(defaultSchema.attributes?.span || []), "className"],
+  },
+};
 
 interface MessageItemProps {
   message: Message;
@@ -178,10 +25,21 @@ interface MessageItemProps {
   isStreaming: boolean;
   onDelete?: (id: string) => void;
   onRetry?: (content: string) => void;
+  onEdit?: (id: string, content: string) => void;
+  onRelatedQuestionClick?: (text: string) => void;
 }
 
-function MessageItemRaw({ message, isStreaming, onDelete, onRetry }: MessageItemProps) {
+function MessageItemRaw({
+  message,
+  isStreaming,
+  onDelete,
+  onRetry,
+  onEdit,
+  onRelatedQuestionClick,
+}: MessageItemProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(message.content);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(message.content);
@@ -189,74 +47,180 @@ function MessageItemRaw({ message, isStreaming, onDelete, onRetry }: MessageItem
     setTimeout(() => setCopied(false), 1500);
   }, [message.content]);
 
+  const handleEditSubmit = useCallback(() => {
+    if (onEdit && editText.trim() !== message.content) {
+      onEdit(message.id, editText.trim());
+    }
+    setIsEditing(false);
+  }, [editText, message.id, message.content, onEdit]);
+
   const safeContent = message.content || "";
+  const hasSources = message.sources && message.sources.length > 0;
+  const hasRelatedQuestions = message.relatedQuestions && message.relatedQuestions.length > 0;
 
-  const roleLabel =
-    message.role === "user" ? "You" : message.role === "tool" ? "Tool" : "AI";
-
-  return (
-    <Wrapper>
-      <RoleLabel role={message.role}>
-        {message.role === "tool" && <Wrench size={11} />}
-        {roleLabel}
-      </RoleLabel>
-      <Row role={message.role}>
-        <Bubble role={message.role}>
-          {message.role === "user" ? (
-            safeContent
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                pre({ children }) {
-                  return (
-                    <PreWrapper>
-                      <CopyCodeBtn
-                        onClick={() => {
-                          const el = document.createElement("div");
-                          if (typeof children === "object") {
-                            // extract text from code child
-                            const codeChild = (children as any)?.props?.children;
-                            navigator.clipboard.writeText(
-                              typeof codeChild === "string" ? codeChild : String(codeChild ?? "")
-                            );
-                          }
-                        }}
-                      >
-                        <Copy size={11} /> Copy
-                      </CopyCodeBtn>
-                      <pre>{children}</pre>
-                    </PreWrapper>
-                  );
-                },
+  if (message.role === "user") {
+    return (
+      <div className="flex flex-col items-end mb-4 animate-[fadeIn_0.2s_ease-out] group">
+        <div className="text-[11px] font-semibold text-text-muted mb-1 text-right">You</div>
+        {isEditing ? (
+          <div className="w-full max-w-[85%]">
+            <textarea
+              className="w-full p-3 border border-border rounded-xl bg-bg-input text-text-primary text-sm resize-none outline-none focus:border-accent"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleEditSubmit();
+                }
+                if (e.key === "Escape") setIsEditing(false);
               }}
+              rows={3}
+              autoFocus
+            />
+            <div className="flex gap-2 mt-1 justify-end">
+              <button
+                className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded"
+                onClick={() => setIsEditing(false)}
+                aria-label="Cancel editing"
+              >
+                Cancel
+              </button>
+              <button
+                className="text-xs text-white bg-accent hover:bg-accent-hover px-3 py-1 rounded"
+                onClick={handleEditSubmit}
+                aria-label="Save edit"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-br-sm bg-user-bubble text-white text-sm leading-relaxed break-words">
+            {safeContent}
+          </div>
+        )}
+        {!isStreaming && !isEditing && (
+          <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary p-1 rounded"
+              onClick={handleCopy}
+              aria-label={copied ? "Copied" : "Copy message"}
             >
-              {safeContent}
-            </ReactMarkdown>
-          )}
-          {isStreaming && <Cursor />}
-        </Bubble>
-      </Row>
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+            {onEdit && (
+              <button
+                className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary p-1 rounded"
+                onClick={() => {
+                  setEditText(message.content);
+                  setIsEditing(true);
+                }}
+                aria-label="Edit message"
+              >
+                <Pencil size={12} /> Edit
+              </button>
+            )}
+            {onRetry && (
+              <button
+                className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary p-1 rounded"
+                onClick={() => onRetry(message.content)}
+                aria-label="Retry message"
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            )}
+            {onDelete && (
+              <button
+                className="flex items-center gap-1 text-[11px] text-text-muted hover:text-danger hover:bg-danger/10 p-1 rounded"
+                onClick={() => onDelete(message.id)}
+                aria-label="Delete message"
+              >
+                <Trash2 size={12} /> Delete
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (message.role === "tool") {
+    return (
+      <div className="mb-4 animate-[fadeIn_0.2s_ease-out]">
+        <div className="text-[11px] font-semibold text-text-muted mb-1 flex items-center gap-1">
+          <Wrench size={11} /> Tool
+        </div>
+        <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-bl-sm bg-emerald-50 border border-emerald-200 text-sm leading-relaxed break-words text-emerald-900">
+          {safeContent}
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant message - article style
+  return (
+    <div className="mb-6 animate-[fadeIn_0.2s_ease-out] group">
+      <div className="text-[11px] font-semibold text-text-muted mb-2 flex items-center gap-1">
+        AI
+        {hasSources && <SearchBadge />}
+      </div>
+
+      {hasSources && <SourceCards sources={message.sources!} />}
+
+      <div className="prose prose-sm max-w-none text-text-primary leading-relaxed
+        [&_p]:mb-2 [&_p:last-child]:mb-0
+        [&_ul]:my-1 [&_ul]:ml-5 [&_ol]:my-1 [&_ol]:ml-5
+        [&_table]:border-collapse [&_table]:my-2 [&_table]:w-full
+        [&_th]:border [&_th]:border-border [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-[13px] [&_th]:bg-bg-tertiary
+        [&_td]:border [&_td]:border-border [&_td]:px-2.5 [&_td]:py-1.5 [&_td]:text-[13px]
+        [&_pre]:bg-gray-50 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-2 [&_pre]:border [&_pre]:border-border
+        [&_code]:font-mono [&_code]:text-[13px]
+        [&_:not(pre)>code]:bg-bg-tertiary [&_:not(pre)>code]:px-1.5 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:rounded [&_:not(pre)>code]:text-xs
+        [&_blockquote]:border-l-3 [&_blockquote]:border-accent [&_blockquote]:my-2 [&_blockquote]:px-3 [&_blockquote]:text-text-secondary
+        [&_a]:text-accent [&_a]:no-underline [&_a:hover]:underline
+      ">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
+        >
+          {safeContent}
+        </ReactMarkdown>
+        {isStreaming && (
+          <span className="inline-block w-1.5 h-4 bg-accent ml-0.5 align-text-bottom animate-[blink_0.8s_infinite]" />
+        )}
+      </div>
+
+      {!isStreaming && hasRelatedQuestions && onRelatedQuestionClick && (
+        <RelatedQuestions
+          questions={message.relatedQuestions!}
+          onQuestionClick={onRelatedQuestionClick}
+        />
+      )}
+
       {!isStreaming && (
-        <Actions>
-          <ActionBtn onClick={handleCopy}>
+        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-tertiary p-1 rounded"
+            onClick={handleCopy}
+            aria-label={copied ? "Copied" : "Copy message"}
+          >
             {copied ? <Check size={12} /> : <Copy size={12} />}
             {copied ? "Copied" : "Copy"}
-          </ActionBtn>
+          </button>
           {onDelete && (
-            <ActionBtn onClick={() => onDelete(message.id)}>
+            <button
+              className="flex items-center gap-1 text-[11px] text-text-muted hover:text-danger hover:bg-danger/10 p-1 rounded"
+              onClick={() => onDelete(message.id)}
+              aria-label="Delete message"
+            >
               <Trash2 size={12} /> Delete
-            </ActionBtn>
+            </button>
           )}
-          {onRetry && message.role === "user" && (
-            <ActionBtn onClick={() => onRetry(message.content)}>
-              <RefreshCw size={12} /> Retry
-            </ActionBtn>
-          )}
-        </Actions>
+        </div>
       )}
-    </Wrapper>
+    </div>
   );
 }
 

@@ -6,6 +6,18 @@ export interface ToolCall {
   arguments: string;
 }
 
+export interface Source {
+  url: string;
+  title: string;
+  domain: string;
+  snippet: string;
+  favicon?: string;
+}
+
+export interface RelatedQuestion {
+  text: string;
+}
+
 export interface Message {
   id: string;
   role: Role;
@@ -13,6 +25,8 @@ export interface Message {
   timestamp: number;
   toolCalls?: ToolCall[];
   toolCallId?: string;
+  sources?: Source[];
+  relatedQuestions?: RelatedQuestion[];
 }
 
 export interface ChatSession {

@@ -1,6 +1,22 @@
+import { z } from "zod";
+
 export const config = { runtime: "edge", maxDuration: 60 };
 
 const DEFAULT_MODEL = "gpt-4o";
+
+const chatMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system", "tool"]),
+  content: z.string(),
+  tool_calls: z.array(z.any()).optional(),
+  tool_call_id: z.string().optional(),
+});
+
+const chatRequestSchema = z.object({
+  messages: z.array(chatMessageSchema).min(1).max(200),
+  model: z.string().max(50).optional(),
+  systemPrompt: z.string().max(10000).optional(),
+  tools: z.boolean().optional(),
+});
 
 interface ChatMessage {
   role: "user" | "assistant" | "system" | "tool";
@@ -15,11 +31,9 @@ interface ToolCallMsg {
   function: { name: string; arguments: string };
 }
 
-interface ChatRequest {
-  messages: ChatMessage[];
-  model?: string;
-  systemPrompt?: string;
-  tools?: boolean;
+interface ToolResult {
+  text: string;
+  sources?: { url: string; title: string; domain: string; snippet: string; favicon?: string }[];
 }
 
 const TOOL_DEFINITIONS = [
@@ -64,22 +78,35 @@ const TOOL_DEFINITIONS = [
   },
 ];
 
-async function executeToolServer(name: string, argsJson: string): Promise<string> {
+async function executeToolServer(name: string, argsJson: string): Promise<ToolResult> {
   try {
     const args = JSON.parse(argsJson);
     switch (name) {
       case "getCurrentTime":
-        return `현재 시간: ${new Date().toISOString()}`;
+        return { text: `현재 시간: ${new Date().toISOString()}` };
 
       case "calculate": {
-        const fn = new Function("return " + args.expression);
-        return `계산 결과: ${args.expression} = ${fn()}`;
+        const { evaluate } = await import("mathjs");
+        const result = evaluate(args.expression);
+        return { text: `계산 결과: ${args.expression} = ${result}` };
       }
 
       case "webSearch": {
         const bingKey = (globalThis as any).process?.env?.BING_API_KEY;
         if (!bingKey) {
-          return `Web search results for "${args.query}":\n1. Web search is not configured. Set BING_API_KEY environment variable to enable real web search.\n2. This is a mock result for: ${args.query}`;
+          const mockSources = [
+            {
+              url: `https://example.com/search?q=${encodeURIComponent(args.query)}`,
+              title: `Search results for: ${args.query}`,
+              domain: "example.com",
+              snippet: "Web search is not configured. Set BING_API_KEY to enable.",
+              favicon: "https://example.com/favicon.ico",
+            },
+          ];
+          return {
+            text: `Web search results for "${args.query}":\n1. Web search is not configured. Set BING_API_KEY environment variable to enable real web search.\n2. This is a mock result for: ${args.query}`,
+            sources: mockSources,
+          };
         }
         const res = await fetch(
           `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(args.query)}&count=5`,
@@ -87,17 +114,28 @@ async function executeToolServer(name: string, argsJson: string): Promise<string
         );
         const data = await res.json();
         const results = data.webPages?.value?.slice(0, 5) ?? [];
-        if (results.length === 0) return `No results found for "${args.query}"`;
-        return results
+        if (results.length === 0) return { text: `No results found for "${args.query}"` };
+
+        const sources = results.map((r: any) => ({
+          url: r.url,
+          title: r.name,
+          domain: new URL(r.url).hostname.replace("www.", ""),
+          snippet: r.snippet || "",
+          favicon: `https://www.google.com/s2/favicons?domain=${new URL(r.url).hostname}&sz=32`,
+        }));
+
+        const text = results
           .map((r: any, i: number) => `${i + 1}. **${r.name}**\n   ${r.snippet}\n   ${r.url}`)
           .join("\n\n");
+
+        return { text, sources };
       }
 
       default:
-        return `Unknown tool: ${name}`;
+        return { text: `Unknown tool: ${name}` };
     }
   } catch (err) {
-    return `Tool error: ${err instanceof Error ? err.message : String(err)}`;
+    return { text: `Tool error: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -107,19 +145,28 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    const { messages, model, systemPrompt, tools: enableTools } = (await req.json()) as ChatRequest;
-
-    if (!messages?.length) {
-      return new Response("messages required", { status: 400 });
+    const body = await req.json();
+    const parsed = chatRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request", details: parsed.error.flatten() }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
+    const { messages, model, systemPrompt, tools: enableTools } = parsed.data;
 
     const apiKey = (globalThis as any).process?.env?.OPENAI_API_KEY;
     if (!apiKey) {
+      console.warn("[api/chat] OPENAI_API_KEY is not set. Running in mock mode.");
       return mockStream(messages);
     }
 
+    const systemContent =
+      (systemPrompt || "You are a helpful, friendly assistant. Answer concisely and clearly.") +
+      "\n\nAfter answering, if appropriate, suggest 3 related follow-up questions the user might want to ask. Format them as:\n[RELATED_QUESTIONS]\n- Question 1\n- Question 2\n- Question 3";
+
     const apiMessages: ChatMessage[] = [
-      { role: "system", content: systemPrompt || "You are a helpful, friendly assistant. Answer concisely and clearly." },
+      { role: "system", content: systemContent },
       ...messages.map((m) => {
         if (m.role === "tool") {
           return { role: "tool" as const, content: m.content, tool_call_id: m.tool_call_id || "" };
@@ -130,7 +177,6 @@ export default async function handler(req: Request): Promise<Response> {
 
     const useTools = enableTools !== false;
 
-    // Agent loop: handle tool calls iteratively, stream the final response
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
@@ -141,18 +187,16 @@ export default async function handler(req: Request): Promise<Response> {
 
           while (loopCount < MAX_LOOPS) {
             loopCount++;
-            const body: Record<string, unknown> = {
+            const requestBody: Record<string, unknown> = {
               model: model || (globalThis as any).process?.env?.OPENAI_MODEL || DEFAULT_MODEL,
               max_tokens: 4096,
               messages: currentMessages,
+              stream: true,
             };
 
             if (useTools && loopCount <= MAX_LOOPS) {
-              body.tools = TOOL_DEFINITIONS;
+              requestBody.tools = TOOL_DEFINITIONS;
             }
-
-            // For intermediate tool calls, don't stream. For final response, stream.
-            body.stream = true;
 
             let openaiRes: globalThis.Response;
             try {
@@ -162,7 +206,7 @@ export default async function handler(req: Request): Promise<Response> {
                   "Content-Type": "application/json",
                   Authorization: `Bearer ${apiKey}`,
                 },
-                body: JSON.stringify(body),
+                body: JSON.stringify(requestBody),
               });
             } catch (fetchErr) {
               const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
@@ -180,12 +224,11 @@ export default async function handler(req: Request): Promise<Response> {
               return;
             }
 
-            // Parse the streaming response
             const reader = openaiRes.body!.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
             let fullContent = "";
-            let toolCallsAccum: Record<number, { id: string; name: string; args: string }> = {};
+            const toolCallsAccum: Record<number, { id: string; name: string; args: string }> = {};
             let hasToolCalls = false;
             let finishReason = "";
 
@@ -203,8 +246,8 @@ export default async function handler(req: Request): Promise<Response> {
                 if (data === "[DONE]") break;
 
                 try {
-                  const parsed = JSON.parse(data);
-                  const choice = parsed.choices?.[0];
+                  const chunk = JSON.parse(data);
+                  const choice = chunk.choices?.[0];
                   if (!choice) continue;
 
                   finishReason = choice.finish_reason || finishReason;
@@ -227,22 +270,19 @@ export default async function handler(req: Request): Promise<Response> {
                       if (tc.function?.arguments) toolCallsAccum[idx].args += tc.function.arguments;
                     }
                   }
-                } catch {}
+                } catch {
+                  // skip malformed chunks
+                }
               }
             }
 
             if (hasToolCalls && finishReason === "tool_calls") {
-              // Execute tools and loop
               const toolCalls = Object.values(toolCallsAccum);
 
-              // Notify client about tool execution
               controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify("\n\n🔧 Tool 실행 중... ")}\n\n`
-                )
+                encoder.encode(`data: ${JSON.stringify("\n\n🔧 Tool 실행 중... ")}\n\n`)
               );
 
-              // Add assistant message with tool_calls to conversation
               const assistantMsg: any = {
                 role: "assistant",
                 content: fullContent || null,
@@ -254,19 +294,22 @@ export default async function handler(req: Request): Promise<Response> {
               };
               currentMessages = [...currentMessages, assistantMsg];
 
-              // Execute each tool and add results
               for (const tc of toolCalls) {
                 const result = await executeToolServer(tc.name, tc.args);
 
+                if (result.sources && result.sources.length > 0) {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ sources: result.sources })}\n\n`)
+                  );
+                }
+
                 controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify(`[${tc.name}] `)}\n\n`
-                  )
+                  encoder.encode(`data: ${JSON.stringify(`[${tc.name}] `)}\n\n`)
                 );
 
                 currentMessages.push({
                   role: "tool",
-                  content: result,
+                  content: result.text,
                   tool_call_id: tc.id,
                 });
               }
@@ -275,11 +318,9 @@ export default async function handler(req: Request): Promise<Response> {
                 encoder.encode(`data: ${JSON.stringify("\n\n")}\n\n`)
               );
 
-              // Continue the loop for the next LLM call
               continue;
             }
 
-            // No tool calls or end_turn — we're done
             break;
           }
 
@@ -307,7 +348,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 }
 
-function mockStream(messages: ChatMessage[]): Response {
+function mockStream(messages: z.infer<typeof chatMessageSchema>[]): Response {
   const lastMsg = messages[messages.length - 1].content.toLowerCase();
   const turnCount = messages.filter((m) => m.role === "user").length;
 

@@ -1,79 +1,9 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useChatStore } from "@/shared/store/chatStore";
-import { theme } from "@/shared/ui/theme";
 import { ConversationList } from "./ConversationList";
 import { SearchPanel } from "./SearchPanel";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Search } from "lucide-react";
-
-const Container = styled.aside<{ collapsed: boolean }>`
-  width: ${(p) => (p.collapsed ? "0" : "280px")};
-  min-width: ${(p) => (p.collapsed ? "0" : "280px")};
-  background: ${theme.colors.sidebarBg};
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: width 0.2s, min-width 0.2s;
-  border-right: 1px solid ${theme.colors.border};
-`;
-
-const Header = styled.div`
-  padding: 16px;
-  display: flex;
-  gap: 8px;
-`;
-
-const NewChatBtn = styled.button`
-  flex: 1;
-  padding: 10px 16px;
-  background: ${theme.colors.accent};
-  color: white;
-  border: none;
-  border-radius: ${theme.radius.md};
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  &:hover {
-    background: ${theme.colors.accentHover};
-  }
-`;
-
-const SearchWrapper = styled.div`
-  position: relative;
-  margin: 0 16px 12px;
-`;
-
-const SearchIcon = styled.span`
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: ${theme.colors.textMuted};
-  display: flex;
-  align-items: center;
-`;
-
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 10px 14px 10px 34px;
-  background: ${theme.colors.bgTertiary};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.md};
-  color: ${theme.colors.textPrimary};
-  font-size: 13px;
-  outline: none;
-  &::placeholder {
-    color: ${theme.colors.textMuted};
-  }
-  &:focus {
-    border-color: ${theme.colors.accent};
-  }
-`;
+import { debounce } from "@/shared/lib/debounce";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -83,27 +13,52 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const { createSession, searchQuery, setSearchQuery } = useChatStore();
   const [showSearch, setShowSearch] = useState(false);
 
-  return (
-    <Container collapsed={collapsed}>
-      <Header>
-        <NewChatBtn onClick={() => createSession()}>
-          <Plus size={16} /> New Chat
-        </NewChatBtn>
-      </Header>
+  const debouncedSetSearch = useCallback(
+    debounce((value: string) => {
+      setSearchQuery(value);
+      setShowSearch(value.length > 0);
+    }, 300),
+    [setSearchQuery]
+  );
 
-      <SearchWrapper>
-        <SearchIcon>
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Update display immediately but debounce the actual search
+    setSearchQuery(value);
+    debouncedSetSearch(value);
+    if (value.length === 0) {
+      setShowSearch(false);
+    }
+  };
+
+  return (
+    <aside
+      className={`bg-sidebar-bg flex flex-col overflow-hidden transition-all duration-200 border-r border-border ${
+        collapsed ? "w-0 min-w-0" : "w-[280px] min-w-[280px]"
+      }`}
+    >
+      <div className="p-4 flex gap-2">
+        <button
+          className="flex-1 py-2.5 px-4 bg-accent text-white border-none rounded-lg text-sm font-medium cursor-pointer flex items-center justify-center gap-1.5 hover:bg-accent-hover transition-colors"
+          onClick={() => createSession()}
+          aria-label="New chat"
+        >
+          <Plus size={16} /> New Chat
+        </button>
+      </div>
+
+      <div className="relative mx-4 mb-3">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted flex items-center">
           <Search size={14} />
-        </SearchIcon>
-        <SearchInput
+        </span>
+        <input
+          className="w-full py-2.5 pr-3.5 pl-8 bg-bg-tertiary border border-border rounded-lg text-text-primary text-[13px] outline-none placeholder:text-text-muted focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
           placeholder="Search messages..."
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setShowSearch(e.target.value.length > 0);
-          }}
+          onChange={handleSearchChange}
+          aria-label="Search messages"
         />
-      </SearchWrapper>
+      </div>
 
       {showSearch && searchQuery ? (
         <SearchPanel
@@ -115,6 +70,6 @@ export function Sidebar({ collapsed }: SidebarProps) {
       ) : (
         <ConversationList />
       )}
-    </Container>
+    </aside>
   );
 }

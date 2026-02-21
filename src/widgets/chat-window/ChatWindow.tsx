@@ -1,77 +1,27 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown } from "lucide-react";
 import { useChatStore } from "@/shared/store/chatStore";
 import { sendMessage } from "@/features/send-message/sendMessage";
-import { theme } from "@/shared/ui/theme";
 import { MessageItem } from "./MessageItem";
+import { SkeletonLoader } from "@/widgets/skeleton/SkeletonLoader";
 
-const Container = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  position: relative;
-`;
-
-const Inner = styled.div`
-  max-width: 768px;
-  margin: 0 auto;
-  padding: 0 24px;
-  position: relative;
-  width: 100%;
-`;
-
-const EmptyState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: ${theme.colors.textMuted};
-  gap: 12px;
-`;
-
-const EmptyTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 600;
-  color: ${theme.colors.textSecondary};
-  margin: 0;
-`;
-
-const EmptySubtitle = styled.p`
-  font-size: 14px;
-  margin: 0;
-`;
-
-const ScrollBtn = styled.button`
-  position: absolute;
-  bottom: 20px;
-  right: 50%;
-  transform: translateX(50%);
-  background: ${theme.colors.bgTertiary};
-  border: 1px solid ${theme.colors.border};
-  color: ${theme.colors.textPrimary};
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 24px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  z-index: 10;
-  box-shadow: ${theme.shadow.md};
-  transition: background 0.15s;
-  &:hover {
-    background: ${theme.colors.border};
-  }
-`;
+function estimateMessageSize(msg: { content: string; role: string; sources?: unknown[] }): number {
+  const baseHeight = 80;
+  const charsPerLine = 80;
+  const lineHeight = 24;
+  const lines = Math.ceil(msg.content.length / charsPerLine);
+  const contentHeight = lines * lineHeight;
+  const sourcesHeight = msg.sources && Array.isArray(msg.sources) && msg.sources.length > 0 ? 100 : 0;
+  return Math.max(baseHeight, contentHeight + sourcesHeight + 60);
+}
 
 export function ChatWindow() {
   const sessions = useChatStore((s) => s.sessions);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const deleteMessage = useChatStore((s) => s.deleteMessage);
+  const editMessage = useChatStore((s) => s.editMessage);
 
   const messages =
     activeSessionId && sessions[activeSessionId]
@@ -85,7 +35,7 @@ export function ChatWindow() {
   const virtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 120,
+    estimateSize: (index) => estimateMessageSize(messages[index]),
     overscan: 5,
   });
 
@@ -97,14 +47,12 @@ export function ChatWindow() {
     }
   }, [messages.length, virtualizer]);
 
-  // Auto-scroll on new messages / streaming
   useEffect(() => {
     if (isAutoScrolling.current && messages.length > 0) {
       virtualizer.scrollToIndex(messages.length - 1, { align: "end" });
     }
   }, [messages.length, messages[messages.length - 1]?.content, isStreaming, virtualizer]);
 
-  // Detect manual scroll up
   useEffect(() => {
     const el = parentRef.current;
     if (!el) return;
@@ -125,12 +73,9 @@ export function ChatWindow() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleRetry = useCallback(
-    (content: string) => {
-      sendMessage(content);
-    },
-    []
-  );
+  const handleRetry = useCallback((content: string) => {
+    sendMessage(content);
+  }, []);
 
   const handleDelete = useCallback(
     (msgId: string) => {
@@ -139,24 +84,37 @@ export function ChatWindow() {
     [deleteMessage]
   );
 
+  const handleEdit = useCallback(
+    (msgId: string, newContent: string) => {
+      editMessage(msgId, newContent);
+      sendMessage(newContent);
+    },
+    [editMessage]
+  );
+
+  const handleRelatedQuestionClick = useCallback((text: string) => {
+    sendMessage(text);
+  }, []);
+
   if (messages.length === 0) {
     return (
-      <Container ref={parentRef}>
-        <EmptyState>
-          <EmptyTitle>AI Chat</EmptyTitle>
-          <EmptySubtitle>Start a conversation by typing a message below.</EmptySubtitle>
-        </EmptyState>
-      </Container>
+      <div ref={parentRef} className="flex-1 overflow-y-auto relative">
+        <div className="flex flex-col items-center justify-center h-full text-text-muted gap-3">
+          <h2 className="text-2xl font-semibold text-text-secondary m-0">Ask anything</h2>
+          <p className="text-sm m-0">Start a conversation by typing a message below.</p>
+        </div>
+      </div>
     );
   }
 
+  const lastMsg = messages[messages.length - 1];
+  const showSkeleton = isStreaming && lastMsg?.role === "assistant" && lastMsg.content === "";
+
   return (
-    <Container ref={parentRef}>
-      <Inner
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative",
-        }}
+    <div ref={parentRef} className="flex-1 overflow-y-auto relative">
+      <div
+        className="max-w-3xl mx-auto relative w-full"
+        style={{ height: virtualizer.getTotalSize() }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const msg = messages[virtualRow.index];
@@ -175,25 +133,35 @@ export function ChatWindow() {
                 padding: "0 24px",
               }}
             >
-              <MessageItem
-                message={msg}
-                isLast={idx === messages.length - 1}
-                isStreaming={
-                  isStreaming && idx === messages.length - 1 && msg.role === "assistant"
-                }
-                onDelete={handleDelete}
-                onRetry={handleRetry}
-              />
+              {showSkeleton && idx === messages.length - 1 ? (
+                <SkeletonLoader />
+              ) : (
+                <MessageItem
+                  message={msg}
+                  isLast={idx === messages.length - 1}
+                  isStreaming={
+                    isStreaming && idx === messages.length - 1 && msg.role === "assistant"
+                  }
+                  onDelete={handleDelete}
+                  onRetry={msg.role === "user" ? handleRetry : undefined}
+                  onEdit={msg.role === "user" ? handleEdit : undefined}
+                  onRelatedQuestionClick={handleRelatedQuestionClick}
+                />
+              )}
             </div>
           );
         })}
-      </Inner>
+      </div>
 
       {showScrollBtn && (
-        <ScrollBtn onClick={scrollToBottom}>
+        <button
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-bg-tertiary border border-border text-text-primary cursor-pointer px-4 py-2 rounded-full text-[13px] flex items-center gap-1.5 z-10 shadow-md hover:bg-border transition-colors"
+          onClick={scrollToBottom}
+          aria-label="Scroll to bottom"
+        >
           <ArrowDown size={14} /> Scroll to bottom
-        </ScrollBtn>
+        </button>
       )}
-    </Container>
+    </div>
   );
 }

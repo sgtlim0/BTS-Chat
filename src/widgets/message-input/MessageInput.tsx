@@ -1,65 +1,7 @@
-/** @jsxImportSource @emotion/react */
-import styled from "@emotion/styled";
 import { useState, useRef, useEffect } from "react";
 import { sendMessage, abortCurrentStream } from "@/features/send-message/sendMessage";
 import { useChatStore } from "@/shared/store/chatStore";
-import { theme } from "@/shared/ui/theme";
 import { Send, Square } from "lucide-react";
-
-const Container = styled.div`
-  padding: 16px 24px 24px;
-  background: ${theme.colors.bgPrimary};
-`;
-
-const Inner = styled.div`
-  max-width: 768px;
-  margin: 0 auto;
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-`;
-
-const TextArea = styled.textarea`
-  flex: 1;
-  padding: 12px 16px;
-  background: ${theme.colors.bgInput};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.radius.lg};
-  color: ${theme.colors.textPrimary};
-  font-size: 14px;
-  font-family: inherit;
-  resize: none;
-  outline: none;
-  min-height: 44px;
-  max-height: 160px;
-  line-height: 1.5;
-  &::placeholder {
-    color: ${theme.colors.textMuted};
-  }
-  &:focus {
-    border-color: ${theme.colors.accent};
-  }
-`;
-
-const SendBtn = styled.button<{ streaming?: boolean }>`
-  padding: 12px;
-  background: ${(p) => (p.streaming ? theme.colors.danger : theme.colors.accent)};
-  color: white;
-  border: none;
-  border-radius: ${theme.radius.lg};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  &:hover {
-    background: ${(p) =>
-      p.streaming ? theme.colors.dangerHover : theme.colors.accentHover};
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
 
 export function MessageInput() {
   const [text, setText] = useState("");
@@ -102,21 +44,39 @@ export function MessageInput() {
   };
 
   return (
-    <Container>
-      <Inner>
-        <TextArea
-          ref={textareaRef}
-          rows={1}
-          placeholder="Type a message... (Shift+Enter for new line)"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onInput={handleInput}
-        />
-        <SendBtn onClick={handleSend} streaming={isStreaming}>
-          {isStreaming ? <Square size={18} /> : <Send size={18} />}
-        </SendBtn>
-      </Inner>
-    </Container>
+    <div className="px-6 pb-6 pt-4 bg-bg-primary">
+      <div className="max-w-3xl mx-auto relative">
+        <div className="flex items-end bg-bg-input border border-border rounded-2xl shadow-sm hover:shadow-md transition-shadow focus-within:border-accent focus-within:shadow-md">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            placeholder="Ask anything..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onInput={handleInput}
+            className="flex-1 py-3.5 pl-5 pr-2 bg-transparent border-none text-text-primary text-sm font-inherit resize-none outline-none min-h-[44px] max-h-[160px] leading-relaxed placeholder:text-text-muted"
+            aria-label="Message input"
+          />
+          <button
+            onClick={handleSend}
+            className={`m-2 p-2.5 rounded-xl flex items-center justify-center transition-colors cursor-pointer border-none ${
+              isStreaming
+                ? "bg-danger hover:bg-danger-hover text-white"
+                : text.trim()
+                ? "bg-accent hover:bg-accent-hover text-white"
+                : "bg-bg-tertiary text-text-muted"
+            }`}
+            disabled={!isStreaming && !text.trim()}
+            aria-label={isStreaming ? "Stop streaming" : "Send message"}
+          >
+            {isStreaming ? <Square size={16} /> : <Send size={16} />}
+          </button>
+        </div>
+        <p className="text-[11px] text-text-muted text-center mt-2">
+          Shift+Enter for new line
+        </p>
+      </div>
+    </div>
   );
 }
