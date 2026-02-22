@@ -1,115 +1,109 @@
-import { useChatStore } from "@/shared/store/chatStore";
-import { Pin, PinOff, Trash2 } from "lucide-react";
-import { isToday, isYesterday, isThisWeek, isThisMonth, format } from "date-fns";
-import type { ChatSession } from "@/entities/message/model";
+'use client'
 
-function getDateGroup(timestamp: number): string {
-  const date = new Date(timestamp);
-  if (isToday(date)) return "오늘";
-  if (isYesterday(date)) return "어제";
-  if (isThisWeek(date)) return "이번 주";
-  if (isThisMonth(date)) return "이번 달";
-  return format(date, "yyyy년 M월");
-}
-
-function groupSessions(sessions: ChatSession[]): { label: string; items: ChatSession[] }[] {
-  const pinned = sessions.filter((s) => s.pinned);
-  const unpinned = sessions.filter((s) => !s.pinned);
-
-  const groups: { label: string; items: ChatSession[] }[] = [];
-
-  if (pinned.length > 0) {
-    groups.push({ label: "고정됨", items: pinned.sort((a, b) => b.createdAt - a.createdAt) });
-  }
-
-  const dateGroups: Record<string, ChatSession[]> = {};
-  for (const s of unpinned.sort((a, b) => b.createdAt - a.createdAt)) {
-    const group = getDateGroup(s.createdAt);
-    if (!dateGroups[group]) dateGroups[group] = [];
-    dateGroups[group].push(s);
-  }
-
-  for (const [label, items] of Object.entries(dateGroups)) {
-    groups.push({ label, items });
-  }
-
-  return groups;
-}
+import React from 'react'
+import { MessageSquare, Pin, Trash2 } from 'lucide-react'
+import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns'
+import { ko } from 'date-fns/locale'
+import { useChatStore } from '@/shared/store/chatStore'
+import { ChatSession } from '@/entities/message'
 
 export function ConversationList() {
-  const { sessions, activeSessionId, switchSession, deleteSession, togglePin } =
-    useChatStore();
+  const { sessions, activeSessionId, switchSession, deleteSession, togglePin } = useChatStore()
 
-  const allSessions = Object.values(sessions);
+  const sortedSessions = Object.values(sessions).sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+    return b.updatedAt - a.updatedAt
+  })
 
-  if (allSessions.length === 0) {
-    return (
-      <div className="flex-1 overflow-y-auto px-3" role="list">
-        <div className="py-8 text-center text-text-muted text-[13px]">
-          아직 대화가 없습니다
-        </div>
-      </div>
-    );
+  const groupedSessions = groupSessionsByDate(sortedSessions)
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (confirm('이 대화를 삭제하시겠습니까?')) {
+      deleteSession(id)
+    }
   }
 
-  const groups = groupSessions(allSessions);
+  const handlePin = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    togglePin(id)
+  }
 
   return (
-    <div className="flex-1 overflow-y-auto px-1.5" role="list">
-      {groups.map((group) => (
-        <div key={group.label}>
-          <div className="text-[11px] font-medium text-text-muted px-3 pt-3 pb-1 tracking-wide">
-            {group.label}
+    <div className="px-2 py-2">
+      {Object.entries(groupedSessions).map(([group, sessions]) => (
+        <div key={group} className="mb-4">
+          <div className="px-2 py-1 text-xs text-[var(--color-text-muted)] font-medium">
+            {group}
           </div>
-          {group.items.map((session) => (
-            <div
+          {sessions.map((session) => (
+            <button
               key={session.id}
-              role="listitem"
-              className={`flex items-center justify-between px-3 py-2 mx-1.5 mb-px rounded-lg cursor-pointer group/item transition-colors ${
-                session.id === activeSessionId
-                  ? "bg-sidebar-active"
-                  : "hover:bg-sidebar-hover"
-              }`}
               onClick={() => switchSession(session.id)}
+              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-[var(--color-sidebar-hover)] transition-colors text-left group ${
+                session.id === activeSessionId ? 'bg-[var(--color-sidebar-active)]' : ''
+              }`}
             >
-              <div className="flex items-center flex-1 min-w-0">
-                {session.pinned && (
-                  <span className="text-accent mr-1.5 flex items-center">
-                    <Pin size={11} />
-                  </span>
-                )}
-                <span className="text-[13px] text-text-primary overflow-hidden text-ellipsis whitespace-nowrap">
+              <MessageSquare className="w-4 h-4 text-[var(--color-text-secondary)] flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-[var(--color-text-primary)] truncate">
                   {session.title}
-                </span>
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  {session.messages.length} 메시지
+                </div>
               </div>
-              <div className="flex gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {session.pinned && (
+                  <Pin className="w-3 h-3 text-[var(--color-accent)] fill-current" />
+                )}
                 <button
-                  className="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded flex items-center hover:text-text-primary hover:bg-black/5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    togglePin(session.id);
-                  }}
-                  title={session.pinned ? "Unpin" : "Pin"}
-                  aria-label={session.pinned ? "Unpin conversation" : "Pin conversation"}
+                  onClick={(e) => handlePin(e, session.id)}
+                  className="p-1 rounded hover:bg-[var(--color-bg-tertiary)]"
                 >
-                  {session.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+                  <Pin className={`w-3 h-3 ${session.pinned ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'}`} />
                 </button>
                 <button
-                  className="bg-transparent border-none text-text-muted cursor-pointer p-1 rounded flex items-center hover:text-danger hover:bg-danger/10"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSession(session.id);
-                  }}
-                  title="Delete"
-                  aria-label="Delete conversation"
+                  onClick={(e) => handleDelete(e, session.id)}
+                  className="p-1 rounded hover:bg-[var(--color-bg-tertiary)]"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 className="w-3 h-3 text-[var(--color-text-muted)]" />
                 </button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       ))}
     </div>
-  );
+  )
+}
+
+function groupSessionsByDate(sessions: ChatSession[]): Record<string, ChatSession[]> {
+  const groups: Record<string, ChatSession[]> = {}
+
+  sessions.forEach((session) => {
+    const date = new Date(session.updatedAt)
+    let group: string
+
+    if (session.pinned) {
+      group = '고정됨'
+    } else if (isToday(date)) {
+      group = '오늘'
+    } else if (isYesterday(date)) {
+      group = '어제'
+    } else if (isThisWeek(date)) {
+      group = '이번 주'
+    } else if (isThisMonth(date)) {
+      group = '이번 달'
+    } else {
+      group = format(date, 'yyyy년 MM월', { locale: ko })
+    }
+
+    if (!groups[group]) {
+      groups[group] = []
+    }
+    groups[group].push(session)
+  })
+
+  return groups
 }

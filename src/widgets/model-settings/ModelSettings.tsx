@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import { useSettingsStore, AVAILABLE_MODELS } from "@/shared/store/settingsStore";
 import { X } from "lucide-react";

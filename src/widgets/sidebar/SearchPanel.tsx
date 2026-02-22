@@ -1,42 +1,53 @@
-import { useChatStore } from "@/shared/store/chatStore";
-import { searchMessages } from "@/features/search/searchMessages";
+'use client'
+
+import React from 'react'
+import { MessageSquare } from 'lucide-react'
+import { useChatStore } from '@/shared/store/chatStore'
+import { searchMessages } from '@/features/search/searchMessages'
 
 interface SearchPanelProps {
-  onClose: () => void;
+  onClose?: () => void
 }
 
 export function SearchPanel({ onClose }: SearchPanelProps) {
-  const { sessions, searchQuery, switchSession } = useChatStore();
-  const results = searchMessages(sessions, searchQuery);
+  const { sessions, searchQuery, switchSession } = useChatStore()
+  const results = searchMessages(sessions, searchQuery)
 
   if (results.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto px-3">
-        <div className="py-8 text-center text-text-muted text-[13px]">
+      <div className="p-4 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">
           검색 결과가 없습니다
-        </div>
+        </p>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-1.5" role="list">
-      {results.slice(0, 50).map((r, i) => (
-        <div
-          key={`${r.sessionId}-${r.message.id}-${i}`}
-          role="listitem"
-          className="px-3 py-2 mx-1.5 mb-px rounded-lg cursor-pointer hover:bg-sidebar-hover transition-colors"
-          onClick={() => {
-            switchSession(r.sessionId);
-            onClose();
-          }}
+    <div className="px-2 py-2">
+      <div className="px-2 py-1 text-xs text-[var(--color-text-muted)] font-medium mb-2">
+        {results.length}개 결과
+      </div>
+      {results.map((result, index) => (
+        <button
+          key={`${result.sessionId}-${result.message.id}-${index}`}
+          onClick={() => switchSession(result.sessionId)}
+          className="w-full flex items-start gap-2 px-2 py-3 rounded-lg hover:bg-[var(--color-sidebar-hover)] transition-colors text-left"
         >
-          <div className="text-[11px] text-accent mb-0.5 font-medium">{r.sessionTitle}</div>
-          <div className="text-[12px] text-text-secondary overflow-hidden text-ellipsis whitespace-nowrap">
-            {r.message.content.slice(0, 80)}
+          <MessageSquare className="w-4 h-4 text-[var(--color-text-secondary)] flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-[var(--color-text-primary)] font-medium mb-1">
+              {result.sessionTitle}
+            </div>
+            <div className="text-xs text-[var(--color-text-secondary)] line-clamp-2">
+              {result.matchedText}
+            </div>
+            <div className="text-xs text-[var(--color-text-muted)] mt-1">
+              {result.message.role === 'user' ? '사용자' : 'Assistant'}
+            </div>
           </div>
-        </div>
+        </button>
       ))}
     </div>
-  );
+  )
 }

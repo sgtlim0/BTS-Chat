@@ -1,3 +1,5 @@
+"use client";
+
 import { useChatStore } from "@/shared/store/chatStore";
 import { ConversationList } from "./ConversationList";
 import { SearchPanel } from "./SearchPanel";
